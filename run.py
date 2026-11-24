@@ -105,6 +105,14 @@ def main():
         obsidian.clipper_templates(Path(__file__).parent / "clipper", store.VAULT.name)
     except Exception as e:  # noqa: BLE001
         logging.warning("préparation du coffre : %s", e)
+    def upgrade():
+        try:
+            n = store.upgrade_library()
+            if n:
+                logging.info("bibliothèque mise à niveau : %s inspi (couleurs, types)", n)
+        except Exception as e:  # noqa: BLE001
+            logging.warning("mise à niveau : %s", e)
+    threading.Thread(target=upgrade, daemon=True, name="upgrade").start()
     enrich.WORKER.start()
     watcher.DropWatcher(on_new=enrich.WORKER.wake.set).start()
     logging.info("Inspi Local sur %s — coffre : %s — modèle : %s", LOCAL, store.VAULT, CFG["ollama_model"])

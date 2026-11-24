@@ -154,6 +154,22 @@ for _name, _mime in (("manifest.webmanifest", "application/manifest+json"), ("ic
 
 
 # ---------- capture ----------
+from starlette.concurrency import run_in_threadpool  # noqa: E402
+
+MAX_VIDEO = 600 * 1024 * 1024
+
+
+def _is_video(name: str, ctype: str, data: bytes) -> bool:
+    from .media import VIDEO_EXT
+    from pathlib import Path as _P
+    if len(data) > MAX_VIDEO:
+        raise HTTPException(413, "Vidéo trop lourde (600 Mo max).")
+    head = data[:16]
+    return (ctype.startswith("video/") or _P(name).suffix.lower() in VIDEO_EXT
+            or head[4:8] == b"ftyp" and head[8:12] not in (b"heic", b"heix", b"mif1", b"avif")
+            or head[:4] == b"\x1aE\xdf\xa3")
+
+
 def _is_url(t: str) -> bool:
     return t.startswith(("http://", "https://")) and " " not in t and "\n" not in t
 
@@ -193,6 +209,14 @@ async def capture(
     for f in file or []:
         data = await f.read()
         if not data:
+            continue
+        if _is_video(f.filename or "", f.content_type or "", data):
+            try:
+                created.append(await run_in_threadpool(
+                    store.add_video, data, f.filename or "video.mp4", source=source, source_url=url,
+                    page_title=title, author=author, user_note=note, site_name=site_name))
+            except Exception as e:  # noqa: BLE001
+                raise HTTPException(400, f"Vidéo illisible ({f.filename}) : {e}")
             continue
         try:
             created.append(store.add_image(data, f.filename or "", source_url=url, user_note=note,
@@ -237,10 +261,23 @@ async def capture_json(request: Request):
                 alt=str(body.get("alt", ""))[:500])
     url, note, img_url = str(body.get("url", "")), str(body.get("note", "")), str(body.get("image_url", ""))
     text = str(body.get("text", "")).strip()
-    if body.get("image_b64"):
+    author_url = str(body.get("author_url", ""))[:300]
+    if body.get("video_b64"):
+        try:
+            data = base64.b64decode(body["video_b64"])
+            if len(data) > MAX_VIDEO:
+                raise ValueError("vidéo trop lourde")
+            it = await run_in_threadpool(store.add_video, data, body.get("filename") or "video.webm",
+                                         source=page["source"], source_url=url, page_title=page["page_title"],
+                                         author=page["author"], author_url=author_url, user_note=note,
+                                         site_name=page["site_name"])
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(400, f"Vidéo illisible : {e}")
+    elif body.get("image_b64"):
         try:
             it = store.add_image(base64.b64decode(body["image_b64"]), body.get("filename", ""), source_url=url,
-                                 user_note=note, image_url=img_url if img_url.startswith("http") else "", **page)
+                                 user_note=note, image_url=img_url if img_url.startswith("http") else "",
+                                 author_url=author_url, **page)
         except Exception as e:  # noqa: BLE001
             raise HTTPException(400, f"Image illisible : {e}")
     elif img_url.startswith("http") or _is_url(text):
@@ -267,8 +304,10 @@ def items(request: Request, q: str = "", tag: str = "", type: str = "", status: 
     need(request)
     res = store.search(q, tag, type, status, color, _facet_params(request), sort, min(limit, 5000), offset)
     if sort == "family":
-        fam = similar.data()["fam_of"]
-        res.sort(key=lambda it: fam.get(it["id"], 9999))
+        fams = similar.all_families()
+        order = {f["id"]: i for i, f in enumerate(fams["manual"] + fams["auto"])}
+        fam = fams["fam_of"]
+        res.sort(key=lambda it: order.get(fam.get(it["id"]), 9999))
     elif sort == "board":
         rank = {}
         for bi, b in enumerate(boards.list_boards()):
@@ -304,8 +343,22 @@ def sim(request: Request, ids: str, limit: int = 40):
 @app.get("/api/families")
 def families(request: Request):
     need(request)
-    return [{"id": f["id"], "label": f["label"], "size": len(f["ids"]), "ids": f["ids"]}
-            for f in similar.data()["families"]]
+    f = similar.all_families()
+    return {"manual": [{"id": x["id"], "label": x["name"], "size": len(x["ids"]), "ids": x["ids"], "auto": False}
+                       for x in f["manual"]],
+            "auto": [{**x, "size": len(x["ids"])} for x in f["auto"]]}
+
+
+@app.post("/api/families")
+async def families_edit(request: Request):
+    """{action: create|rename|add|remove|delete, id?, name?, ids?}"""
+    need(request)
+    b = await request.json()
+    try:
+        return similar.edit_families(str(b.get("action", "")), str(b.get("id", "")), str(b.get("name", "")),
+                                     [str(i) for i in b.get("ids") or []])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.get("/api/duplicates")
@@ -486,6 +539,10 @@ def doctor_api(request: Request):
 def media(iid: str, kind: str, request: Request):
     need(request)
     it = store.get(iid)
+    if kind == "video":
+        if not it or not it.get("video") or not (store.VAULT / it["video"]).exists():
+            raise HTTPException(404)
+        return FileResponse(store.VAULT / it["video"])  # lecture avec avance rapide (requêtes partielles)
     if not it or not it.get("image"):
         raise HTTPException(404)
     p = store.THUMBS / f"{iid}.webp" if kind == "thumb" else store.VAULT / it["image"]
@@ -502,6 +559,18 @@ def list_boards(request: Request):
     vault = urllib.parse.quote(store.VAULT.name)
     return [{**b, "obsidian": f"obsidian://open?vault={vault}&file={urllib.parse.quote(b['path'][:-3])}"}
             for b in boards.list_boards()]
+
+
+@app.post("/api/board/remove")
+async def board_remove(request: Request):
+    """Retire des images d'un moodboard ; elles restent sur le mur."""
+    need(request)
+    b = await request.json()
+    try:
+        n = boards.remove_from_board(str(b.get("name", "")), [str(i) for i in b.get("ids") or []])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "removed": n}
 
 
 @app.post("/api/board")

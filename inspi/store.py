@@ -22,10 +22,12 @@ try:  # photos iPhone (HEIC)
 except Exception:
     pass
 
-from . import colors
+from . import colors, media
 from .config import CFG
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+COLORS_VERSION = 1
+KINDS = ("image", "video", "screenshot", "text", "link")
 VAULT: Path = CFG["vault"]
 INBOX = VAULT / "Inbox"
 LIBRARY = VAULT / "Library"
@@ -69,7 +71,8 @@ CREATE INDEX IF NOT EXISTS idx_created ON items(created);
 _have = {r["name"] for r in _conn.execute("PRAGMA table_info(items)")}
 for col, decl in (("sha1", "TEXT"), ("site_name", "TEXT"), ("alt", "TEXT"), ("image_url", "TEXT"),
                   ("meta", "TEXT DEFAULT '{}'"), ("main_color", "TEXT"), ("schema_version", "INTEGER DEFAULT 0"),
-                  ("trashed", "TEXT")):
+                  ("trashed", "TEXT"), ("kind", "TEXT"), ("video", "TEXT"), ("duration", "REAL"),
+                  ("author_url", "TEXT"), ("colors_v", "INTEGER DEFAULT 0")):
     if col not in _have:
         _conn.execute(f"ALTER TABLE items ADD COLUMN {col} {decl}")
 _conn.commit()
@@ -181,7 +184,34 @@ def add_seen(item_id: str, url: str, source: str) -> dict:
     return get(item_id)
 
 
-def _save_image(iid: str, data: bytes, filename: str = "") -> dict:
+# Tailles d'écran courantes (iPhone, Android, PC) : une image PNG à ces dimensions est une capture d'écran
+SCREEN_SIZES = {(1170, 2532), (1179, 2556), (1290, 2796), (1284, 2778), (1125, 2436), (828, 1792), (750, 1334),
+                (1242, 2688), (1206, 2622), (1320, 2868), (1080, 2340), (1080, 2400), (1440, 3200), (1080, 1920),
+                (1920, 1080), (2560, 1440), (3840, 2160), (1366, 768), (1536, 864), (1440, 900), (2880, 1800),
+                (2560, 1600), (3024, 1964), (3456, 2234), (1600, 900), (2560, 1080), (3440, 1440), (1280, 720)}
+SCREEN_NAME = re.compile(r"(screenshot|screen shot|capture[ _-]?d[' ]?[ée]cran|^capture|scr_|snip)", re.I)
+
+
+def looks_like_screenshot(img: Image.Image, fmt: str, filename: str = "", source: str = "") -> bool:
+    if source == "capture" or SCREEN_NAME.search(filename or ""):
+        return True
+    try:
+        exif = img.getexif()
+        camera = bool(exif.get(271) or exif.get(272))  # marque / modèle d'appareil photo
+    except Exception:
+        camera = False
+    return fmt == "PNG" and not camera and (img.width, img.height) in SCREEN_SIZES
+
+
+def color_fields(img: Image.Image) -> dict:
+    """Champs couleur calculés à partir des pixels (plus fiables que l'IA)."""
+    c = colors.extract_palette(img)
+    return {"palette": [p["hex"] for p in c["palette"]], "main_color": c["main_color"], "colors_v": COLORS_VERSION,
+            "_meta": {"palette": c["palette"], "main_color": c["main_color"], "accent_color": c["accent_color"],
+                      "color_temperature": c["color_temperature"]}}
+
+
+def _save_image(iid: str, data: bytes, filename: str = "", source: str = "") -> dict:
     img = Image.open(io.BytesIO(data))
     fmt = (img.format or "").upper()  # à lire avant exif_transpose, qui l'efface
     img = ImageOps.exif_transpose(img) or img
@@ -201,22 +231,92 @@ def _save_image(iid: str, data: bytes, filename: str = "") -> dict:
     thumb.save(THUMBS / f"{iid}.webp", "WEBP", quality=80)
     h = dhash(img)
     return {"image": rel, "width": img.width, "height": img.height, "dhash": h,
-            "duplicate_of": _near_duplicate(h, iid)}
+            "duplicate_of": _near_duplicate(h, iid),
+            "kind": "screenshot" if looks_like_screenshot(img, fmt, filename, source) else "image", **color_fields(img)}
+
+
+def _with_meta(fields: dict, meta: dict | None = None) -> dict:
+    """Sépare les champs couleur destinés à « meta » des colonnes."""
+    extra = fields.pop("_meta", {})
+    for k in ("palette", "tags"):
+        if isinstance(fields.get(k), list):
+            fields[k] = json.dumps(fields[k], ensure_ascii=False)
+    return {**fields, "meta": json.dumps({**(meta or {}), **extra}, ensure_ascii=False)}
 
 
 def add_image(data: bytes, filename: str = "", source: str = "web", source_url: str = "",
               page_title: str = "", author: str = "", user_note: str = "", site_name: str = "",
-              alt: str = "", image_url: str = "") -> dict:
+              alt: str = "", image_url: str = "", author_url: str = "") -> dict:
     Image.open(io.BytesIO(data)).verify()  # refuse ce qui n'est pas une image
     sha = hashlib.sha1(data).hexdigest()
     same = _by_sha(sha)
     if same:
         return {**add_seen(same["id"], source_url, source), "already": True}
     iid = new_id()
-    saved = _save_image(iid, data, filename)
+    saved = _with_meta(_save_image(iid, data, filename, source))
     item = dict(id=iid, type="image", status="pending", created=_now(), source=source, source_url=source_url,
-                page_title=page_title, author=author, site_name=site_name, alt=alt, image_url=image_url,
-                user_note=user_note, sha1=sha, **saved)
+                page_title=page_title, author=author, author_url=author_url or None, site_name=site_name, alt=alt,
+                image_url=image_url, user_note=user_note, sha1=sha, **saved)
+    _insert(item)
+    write_note(iid)
+    return get(iid)
+
+
+def add_video(data: bytes, filename: str = "video.mp4", source: str = "web", source_url: str = "",
+              page_title: str = "", author: str = "", author_url: str = "", user_note: str = "",
+              site_name: str = "") -> dict:
+    """Vidéo : fichier gardé (converti en MP4 si le navigateur ne sait pas le lire), image d'aperçu,
+    palette calculée sur plusieurs images. La fiche IA est faite à partir de 4 images clés."""
+    import tempfile
+    sha = hashlib.sha1(data).hexdigest()
+    same = _by_sha(sha)
+    if same:
+        return {**add_seen(same["id"], source_url, source), "already": True}
+    iid = new_id()
+    month = datetime.now().strftime("%Y-%m")
+    (ASSETS / month).mkdir(parents=True, exist_ok=True)
+    ext = Path(filename).suffix.lower()
+    if ext not in media.VIDEO_EXT:
+        ext = ".webm" if data[:4] == b"\x1aE\xdf\xa3" else ".mp4"
+    dest = ASSETS / month / f"{iid}{ext}"
+    dest.write_bytes(data)
+    try:
+        info = media.probe(dest)
+        if not info["duration"] and ext == ".webm":  # les enregistrements du navigateur n'ont pas de durée
+            fixed = dest.with_name(f"{iid}.fixed.webm")
+            media._run(["-y", "-i", str(dest), "-c", "copy", str(fixed)], 600)
+            if fixed.exists() and fixed.stat().st_size:
+                fixed.replace(dest)
+                info = media.probe(dest)
+        if media.needs_transcode(info, dest):
+            mp4 = dest.with_suffix(".mp4") if dest.suffix != ".mp4" else dest.with_name(f"{iid}.h264.mp4")
+            media.transcode(dest, mp4)
+            dest.unlink()
+            dest = mp4.replace(ASSETS / month / f"{iid}.mp4")
+            info = media.probe(dest)
+        poster_rel = f"assets/{month}/{iid}-apercu.jpg"
+        media.frame(dest, min((info["duration"] or 0) * 0.15, 3), VAULT / poster_rel, 1600)
+        with tempfile.TemporaryDirectory() as td:
+            frames = media.key_frames(dest, info["duration"], Path(td), 4, 400)
+            strip = Image.new("RGB", (400 * len(frames), 400))
+            for i, f in enumerate(frames):
+                im = Image.open(f).convert("RGB")
+                im.thumbnail((400, 400))
+                strip.paste(im, (400 * i, 0))
+    except Exception:
+        dest.unlink(missing_ok=True)
+        raise
+    poster = Image.open(VAULT / poster_rel)
+    thumb = poster.convert("RGB")
+    thumb.thumbnail((520, 520))
+    thumb.save(THUMBS / f"{iid}.webp", "WEBP", quality=80)
+    h = dhash(poster)
+    cf = color_fields(strip)
+    item = dict(id=iid, type="image", kind="video", status="pending", created=_now(), source=source,
+                source_url=source_url, page_title=page_title, author=author, author_url=author_url or None,
+                site_name=site_name, user_note=user_note, sha1=sha, image=poster_rel,
+                video=dest.relative_to(VAULT).as_posix(), duration=info["duration"],
+                width=info["width"], height=info["height"], dhash=h, **_with_meta(cf, {"has_audio": info["audio"]}))
     _insert(item)
     write_note(iid)
     return get(iid)
@@ -227,7 +327,7 @@ def add_url(url: str, source: str = "web", image_url: str = "", page_title: str 
     """Lien seul (partage iPhone, Web Clipper, image non lisible par l'extension) :
     l'image sera récupérée en arrière-plan (status 'fetch')."""
     iid = new_id()
-    item = dict(id=iid, type="image", status="fetch", created=_now(), source=source, source_url=url,
+    item = dict(id=iid, type="image", kind="image", status="fetch", created=_now(), source=source, source_url=url,
                 image_url=image_url, page_title=page_title, author=author, site_name=site_name, alt=alt,
                 user_note=user_note)
     _insert(item)
@@ -245,9 +345,10 @@ def attach_image(item_id: str, data: bytes, filename: str = "", **page) -> dict:
         add_seen(same["id"], it.get("source_url") or "", it.get("source") or "")
         purge(item_id)
         return {**get(same["id"]), "already": True}
-    saved = _save_image(item_id, data, filename)
+    saved = _save_image(item_id, data, filename, it.get("source") or "")
+    extra = saved.pop("_meta", {})
     fields = {k: v for k, v in page.items() if v and not it.get(k)}
-    update(item_id, status="pending", sha1=sha, error=None, attempts=0, **saved, **fields)
+    update(item_id, status="pending", sha1=sha, error=None, attempts=0, meta={**it["meta"], **extra}, **saved, **fields)
     write_note(item_id)
     return get(item_id)
 
@@ -295,9 +396,11 @@ def edit_image(item_id: str, crop: dict | None, width: int | None, height: int |
                         user_note=((it.get("user_note") or "") + f"\n(recadrage de {item_id})").strip())
         if not new.get("already") and not reclassify and it["status"] == "done":
             # même fiche que l'original (la palette peut différer légèrement) : pas besoin de reclasser
-            fields = {k: it[k] for k in ("title", "description", "tags", "style", "medium", "mood", "palette", "main_color")}
-            update(new["id"], status="done", schema_version=it.get("schema_version"),
-                   meta={k: v for k, v in it["meta"].items() if k not in ("also_seen", "trash_files", "original")}, **fields)
+            fields = {k: it[k] for k in ("title", "description", "tags", "style", "medium", "mood")}
+            keep = {k: v for k, v in it["meta"].items() if k not in ("also_seen", "trash_files", "original", "palette",
+                                                                   "main_color", "accent_color", "color_temperature")}
+            update(new["id"], status="done", schema_version=it.get("schema_version"), meta={**new["meta"], **keep},
+                   **fields)
             write_note(new["id"])
         return get(new["id"])
     ORIGINALS.mkdir(exist_ok=True)
@@ -315,7 +418,9 @@ def edit_image(item_id: str, crop: dict | None, width: int | None, height: int |
     thumb.thumbnail((520, 520))
     thumb.save(THUMBS / f"{item_id}.webp", "WEBP", quality=80)
     meta["edited_at"] = _now()
-    fields = dict(image=rel, width=img.width, height=img.height, sha1=hashlib.sha1(data).hexdigest(),
+    cf = color_fields(img)
+    meta.update(cf.pop("_meta"))
+    fields = dict(image=rel, width=img.width, height=img.height, sha1=hashlib.sha1(data).hexdigest(), **cf,
                   dhash=dhash(img), meta=meta)
     if reclassify:
         fields.update(status="pending", attempts=0, error=None)
@@ -340,7 +445,9 @@ def restore_original(item_id: str) -> dict:
     thumb.thumbnail((520, 520))
     thumb.save(THUMBS / f"{item_id}.webp", "WEBP", quality=80)
     meta = {k: v for k, v in it["meta"].items() if k not in ("original", "edited_at")}
-    update(item_id, image=target.relative_to(VAULT).as_posix(), width=img.width, height=img.height,
+    cf = color_fields(img)
+    meta.update(cf.pop("_meta"))
+    update(item_id, image=target.relative_to(VAULT).as_posix(), width=img.width, height=img.height, **cf,
            sha1=hashlib.sha1(data).hexdigest(), dhash=dhash(img), meta=meta)
     (ORIGINALS / o["file"]).unlink()
     write_note(item_id)
@@ -349,8 +456,11 @@ def restore_original(item_id: str) -> dict:
 
 def add_text(text: str, source: str = "web", source_url: str = "", page_title: str = "", user_note: str = "") -> dict:
     iid = new_id()
-    item = dict(id=iid, type="text", status="pending", created=_now(), source=source, source_url=source_url,
-                page_title=page_title, text=text.strip(), user_note=user_note)
+    t = text.strip()
+    is_link = bool(re.fullmatch(r"https?://\S+", t))
+    item = dict(id=iid, type="text", kind="link" if is_link else "text", status="pending", created=_now(),
+                source=source, source_url=source_url or (t if is_link else ""), page_title=page_title, text=t,
+                user_note=user_note)
     _insert(item)
     write_note(iid)
     return get(iid)
@@ -379,7 +489,7 @@ def trash(ids: list[str]) -> dict:
             continue
         dest.mkdir(parents=True, exist_ok=True)
         files = {}
-        for key in ("note", "image"):
+        for key in ("note", "image", "video"):
             rel = it.get(key)
             if not rel or not (VAULT / rel).exists():
                 continue
@@ -437,9 +547,12 @@ def write_note(item_id: str) -> None:
     folder = LIBRARY if it["status"] == "done" else INBOX
     name = f"{it['id']} {slug(it.get('title') or it.get('page_title') or it['type'])}.md"
     rel = f"{folder.name}/{name}"
-    fm: dict = {"id": it["id"], "type": it["type"], "status": it["status"], "captured": it["created"],
-                "source": it["source"]}
-    for k in ("source_url", "image_url", "page_title", "site_name", "author"):
+    fm: dict = {"id": it["id"], "type": it["type"], "kind": it.get("kind") or it["type"], "status": it["status"],
+                "captured": it["created"], "source": it["source"]}
+    if it.get("video"):
+        fm["video"] = it["video"]
+        fm["duration"] = it.get("duration")
+    for k in ("source_url", "image_url", "page_title", "site_name", "author", "author_url"):
         if it.get(k):
             fm[k] = it[k]
     if it.get("author"):
@@ -455,6 +568,7 @@ def write_note(item_id: str) -> None:
         fm["main_color"] = m.get("main_color") or (it["palette"][0] if it["palette"] else None)
         fm["color_name"] = colors.color_name(fm["main_color"])
         fm["color_temperature"] = m.get("color_temperature")
+        fm["accent_color"] = m.get("accent_color")
         fm["palette"] = [p["hex"] for p in m.get("palette", [])] or it["palette"]
         for k in ("era", "subject", "composition", "lighting", "typography", "texture"):
             fm[k] = m.get(k)
@@ -473,7 +587,9 @@ def write_note(item_id: str) -> None:
         fm["duplicate_of"] = it["duplicate_of"]
     body = ["---", yaml.safe_dump(fm, allow_unicode=True, sort_keys=False, width=1000).strip(), "---", ""]
     body += [f"# {it.get('title') or it.get('page_title') or ('Lien à récupérer' if it['status'] == 'fetch' else 'Inspi')}", ""]
-    if it.get("image"):
+    if it.get("video"):
+        body += [f"![[{it['video']}]]", ""]
+    elif it.get("image"):
         body += [f"![[{it['image']}]]", ""]
     elif it.get("image_url"):
         body += [f"![]({it['image_url']})", ""]
@@ -496,7 +612,7 @@ def write_note(item_id: str) -> None:
     body += ["## Source"]
     body.append(f"- [{it.get('page_title') or it['source_url']}]({it['source_url']})" if it.get("source_url") else "- (capture locale)")
     if it.get("author"):
-        body.append(f"- Auteur : {it['author']}")
+        body.append(f"- Auteur : [{it['author']}]({it['author_url']})" if it.get("author_url") else f"- Auteur : {it['author']}")
     for s in m.get("also_seen") or []:
         body.append(f"- Aussi capturé le {s['date']} : {s['url']}")
     body.append("")
@@ -555,7 +671,7 @@ def search(q: str = "", tag: str = "", type_: str = "", status: str = "", color:
     target = colors.parse_color(color) if color else None
     out = []
     for it in items:
-        if type_ and it["type"] != type_:
+        if type_ and (it.get("kind") or it["type"]) != type_ and not (type_ == "image" and it["type"] == "image" and not it.get("kind")):
             continue
         if status == "incomplete":
             if not (it["status"] == "done" and it["meta"].get("fiche_incomplete")):
@@ -646,3 +762,31 @@ def stats() -> dict:
 def known_note_paths() -> set[str]:
     with _lock:
         return {r["note"] for r in _conn.execute("SELECT note FROM items WHERE note IS NOT NULL")}
+
+
+def upgrade_library(on_progress=None) -> int:
+    """Met à niveau les anciennes inspi : palette calculée à partir des pixels et type (image, capture, lien…)."""
+    n = 0
+    for it in all_items():
+        fields: dict = {}
+        if it.get("image") and (it.get("colors_v") or 0) < COLORS_VERSION and (VAULT / it["image"]).exists():
+            try:
+                img = Image.open(VAULT / it["image"])
+                cf = color_fields(img)
+                meta = {**it["meta"], **cf.pop("_meta")}
+                fields.update(cf, meta=meta)
+                if not it.get("kind"):
+                    fmt = (img.format or "").upper()
+                    fields["kind"] = "screenshot" if looks_like_screenshot(img, fmt, it["image"], it.get("source") or "") else "image"
+            except Exception:  # noqa: BLE001
+                fields["colors_v"] = COLORS_VERSION
+        if not it.get("kind") and "kind" not in fields:
+            t = (it.get("text") or "").strip()
+            fields["kind"] = "link" if it["type"] == "text" and re.fullmatch(r"https?://\S+", t) else it["type"]
+        if fields:
+            update(it["id"], **fields)
+            write_note(it["id"])
+            n += 1
+            if on_progress:
+                on_progress(n)
+    return n

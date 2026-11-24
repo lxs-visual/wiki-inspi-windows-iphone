@@ -4,10 +4,13 @@ const DEFAULT_PORT = 18765;
 const MAX_BYTES = 25 * 1024 * 1024;
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({ id: "inspi-img", title: "Envoyer à Inspi", contexts: ["image"] }, () => void chrome.runtime.lastError);
-  chrome.contextMenus.create({ id: "inspi-txt", title: "Envoyer le texte à Inspi", contexts: ["selection"] }, () => void chrome.runtime.lastError);
-  chrome.contextMenus.create({ id: "inspi-link", title: "Envoyer le lien à Inspi", contexts: ["link"] }, () => void chrome.runtime.lastError);
-  chrome.contextMenus.create({ id: "inspi-page", title: "Envoyer cette page à Inspi", contexts: ["page"] }, () => void chrome.runtime.lastError);
+  chrome.contextMenus.removeAll(() => {
+    const mk = (id, title, contexts) => chrome.contextMenus.create({ id, title, contexts }, () => void chrome.runtime.lastError);
+    mk("inspi-main", "Envoyer à Inspi", ["page", "image", "video", "link", "frame"]);
+    mk("inspi-frame", "Envoyer l'image affichée de la vidéo", ["page", "video", "frame"]);
+    mk("inspi-txt", "Envoyer le texte à Inspi", ["selection"]);
+    mk("inspi-link", "Envoyer le lien à Inspi", ["link"]);
+  });
   autoPair().then((ok) => { if (!ok) chrome.runtime.openOptionsPage(); });
 });
 
@@ -125,34 +128,86 @@ async function send(body) {
   return js;
 }
 
+function ask(tab, frameId, msg) {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tab.id, msg, { frameId: frameId || 0 }, (r) => { void chrome.runtime.lastError; resolve(r || null); });
+  });
+}
+
+async function ensureContent(tab, frameId) {
+  // pages ouvertes avant l'installation de l'extension : on injecte le script à la volée
+  const pong = await ask(tab, frameId, { cmd: "target" });
+  if (pong !== null) return pong;
+  try { await chrome.scripting.executeScript({ target: { tabId: tab.id, frameIds: [frameId || 0] }, files: ["content.js"] }); } catch (e) {}
+  return null;
+}
+
+async function cropScreenshot(tab, rect, dpr) {
+  // capture de l'onglet recadrée sur l'image ou la vidéo (quand la page bloque la lecture des pixels)
+  const url = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+  const bmp = await createImageBitmap(await (await fetch(url)).blob());
+  const x = Math.max(0, Math.round(rect.x * dpr)), y = Math.max(0, Math.round(rect.y * dpr));
+  const w = Math.min(bmp.width - x, Math.round(rect.w * dpr)), h = Math.min(bmp.height - y, Math.round(rect.h * dpr));
+  const c = new OffscreenCanvas(Math.max(1, w), Math.max(1, h));
+  c.getContext("2d").drawImage(bmp, x, y, w, h, 0, 0, w, h);
+  const blob = await c.convertToBlob({ type: "image/png" });
+  return toB64(await blob.arrayBuffer());
+}
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab) return;
+  const frameId = info.frameId || 0;
   let meta = { title: tab.title || "", author: "", site_name: "", alt: "" };
   try {
     const [m] = await chrome.scripting.executeScript({ target: { tabId: tab.id, frameIds: [0] }, func: pageMetadata, args: [info.srcUrl || ""] });
     if (m && m.result) meta = m.result;
   } catch (e) { /* page protégée : on garde le titre de l'onglet */ }
-  const ctx = { url: info.pageUrl || tab.url || "", title: meta.title, author: meta.author, site_name: meta.site_name, alt: meta.alt };
+  let ctx = { url: info.pageUrl || tab.url || "", title: meta.title, author: meta.author, site_name: meta.site_name, alt: meta.alt };
   try {
     let js;
-    if (info.menuItemId === "inspi-img") {
-      const http = /^https?:\/\//i.test(info.srcUrl);
-      try {
-        const b64 = await getBytes(info, tab);
-        js = await send({ ...ctx, image_b64: b64, image_url: http ? info.srcUrl : "", filename: (info.srcUrl.split(/[?#]/)[0].split("/").pop() || "image").slice(0, 80) });
-      } catch (e) {
-        if (!http) throw e;
-        // Octets illisibles (hotlink, 403…) : le PC tentera lui-même, sinon le lien est gardé
-        js = await send({ ...ctx, image_url: info.srcUrl });
-      }
-    } else if (info.menuItemId === "inspi-txt") {
+    if (info.menuItemId === "inspi-txt") {
       js = await send({ ...ctx, text: info.selectionText });
     } else if (info.menuItemId === "inspi-link") {
       js = await send({ ...ctx, text: info.linkUrl, url: info.linkUrl, title: "" });
-    } else if (info.menuItemId === "inspi-page") {
-      js = await send({ ...ctx, image_url: meta.og_image || "", text: ctx.url });
+    } else {
+      let target = await ensureContent(tab, frameId);
+      if (target && target.meta) ctx = { ...ctx, ...Object.fromEntries(Object.entries(target.meta).filter(([, v]) => v)) };
+      if (target && target.alt && !ctx.alt) ctx.alt = target.alt;
+      if (info.menuItemId === "inspi-frame") {
+        if (!target || target.kind !== "video") throw new Error("pas de vidéo sous le curseur");
+        let fr = await ask(tab, frameId, { cmd: "frame" });
+        const b64 = fr && fr.b64 ? fr.b64 : await cropScreenshot(tab, target.rect, target.dpr);
+        js = await send({ ...ctx, image_b64: b64, filename: "image-video.jpg" });
+      } else if (target && target.kind === "video") {
+        notify(true, "Enregistrement de la vidéo pendant sa lecture (60 s max). Clique sur le bandeau pour arrêter plus tôt.");
+        const r = await ask(tab, frameId, { cmd: "record", maxSec: 60 });
+        if (r && r.b64) {
+          js = await send({ ...ctx, video_b64: r.b64, filename: r.mime && r.mime.includes("mp4") ? "video.mp4" : "video.webm" });
+        } else {
+          // enregistrement impossible : on garde au moins l'image affichée
+          const b64 = await cropScreenshot(tab, target.rect, target.dpr);
+          js = await send({ ...ctx, image_b64: b64, filename: "image-video.png", note: "Vidéo non enregistrable (" + ((r && r.error) || "erreur") + ") : image affichée gardée." });
+        }
+      } else if ((target && target.kind === "image" && target.src) || info.srcUrl) {
+        const src = (target && target.kind === "image" && target.src) || info.srcUrl;
+        const http = /^https?:\/\//i.test(src);
+        try {
+          const b64 = await getBytes({ ...info, srcUrl: src }, tab);
+          js = await send({ ...ctx, image_b64: b64, image_url: http ? src : "", filename: (src.split(/[?#]/)[0].split("/").pop() || "image").slice(0, 80) });
+        } catch (e) {
+          if (target && target.rect) {
+            js = await send({ ...ctx, image_b64: await cropScreenshot(tab, target.rect, target.dpr), filename: "image.png", image_url: http ? src : "" });
+          } else if (http) {
+            js = await send({ ...ctx, image_url: src });
+          } else throw e;
+        }
+      } else if (info.linkUrl) {
+        js = await send({ ...ctx, text: info.linkUrl, url: info.linkUrl, title: "" });
+      } else {
+        js = await send({ ...ctx, image_url: meta.og_image || "", text: ctx.url });
+      }
     }
-    notify(true, js.message || "Enregistré");
+    notify(true, js.message || "Enregistré" + (ctx.author ? ` · ${ctx.author}` : ""));
   } catch (e) {
     notify(false, e && e.message ? e.message : String(e));
   }

@@ -135,17 +135,20 @@ def _layout(items: list[dict], x0: float, y0: float, cols: int) -> tuple[list[di
         fid = it.get("sha1") or hashlib.sha1((store.VAULT / it["image"]).read_bytes()).hexdigest()
         files[fid] = it["image"]
         link = it["source_url"] if str(it.get("source_url") or "").startswith("http") else None
+        group = [uuid.uuid4().hex[:12]]  # image + légendes groupées : on peut les déplacer ou retirer ensemble
         els.append(_el("image", x, y, CELL, h, strokeColor="transparent", fileId=fid, status="saved",
-                       scale=[1, 1], crop=None, link=link))
+                       scale=[1, 1], crop=None, link=link, groupIds=group))
         cap = (it.get("title") or it.get("page_title") or "") + (f" · {it['author']}" if it.get("author") else "")
         used = 0
         if cap.strip():
             t = _text(x, y + h + 6, CELL, cap, 13)
+            t["groupIds"] = group
             els.append(t)
             used += t["height"]
         host = _host(it.get("source_url"))
         if host:
             t = _text(x, y + h + 6 + used, CELL, host, 11, "#6b7280")
+            t["groupIds"] = group
             els.append(t)
             used += t["height"]
         heights[c] = y + h + 6 + used + GAP
@@ -237,6 +240,54 @@ def _append(path, items: list[dict]) -> int:
     body = "```json\n" + json.dumps(data, indent=1, ensure_ascii=False) + "\n```"
     path.write_text(head + body + text[m.end():], encoding="utf-8")
     return len(fresh)
+
+
+def _read(path):
+    text = path.read_text(encoding="utf-8")
+    m = DRAW_RE.search(text)
+    if not m:
+        raise ValueError("Ce moodboard n'a pas de dessin lisible.")
+    data = json.loads(lz_decompress_b64(m.group(2)) if m.group(1) == "compressed-json" else m.group(2))
+    return text, m, data
+
+
+def remove_from_board(name: str, ids: list[str]) -> int:
+    """Retire des images d'un moodboard (avec leurs légendes) sans toucher aux inspi du mur."""
+    path = store.BOARDS / f"{safe_name(name)}.excalidraw.md"
+    if not path.exists():
+        raise ValueError("Moodboard introuvable.")
+    text, m, data = _read(path)
+    pairs = FILE_RE.findall(text)
+    targets = [it for it in (store.get(i) for i in ids) if it and it.get("image")]
+    names = {link_name(it["image"]) for it in targets}
+    shas = {it["sha1"] for it in targets if it.get("sha1")}
+    fids = {fid for fid, rel in pairs if fid in shas or link_name(rel) in names}
+    if not fids:
+        return 0
+    els = data.get("elements", [])
+    imgs = [e for e in els if e.get("type") == "image" and e.get("fileId") in fids]
+    gone = {e["id"] for e in imgs}
+    groups = {g for e in imgs for g in (e.get("groupIds") or [])}
+    for e in els:
+        if groups and set(e.get("groupIds") or []) & groups:
+            gone.add(e["id"])
+        elif e.get("type") == "text" and not e.get("groupIds"):
+            # anciens boards sans groupes : la légende posée juste sous l'image
+            for im in imgs:
+                if abs(e["x"] - im["x"]) < 4 and 0 <= e["y"] - (im["y"] + im["height"]) < 70:
+                    gone.add(e["id"])
+    data["elements"] = [e for e in els if e["id"] not in gone]
+    if isinstance(data.get("files"), dict):
+        for fid in fids:
+            data["files"].pop(fid, None)
+    head = text[: m.start()]
+    head = re.sub(r"^(" + "|".join(re.escape(f) for f in fids) + r"): \[\[[^\]]+\]\]\n+", "", head, flags=re.M)
+    backup = store.META / "board-backups"
+    backup.mkdir(exist_ok=True)
+    shutil.copy2(path, backup / f"{path.name[:-14]}.{datetime.now():%Y%m%d-%H%M%S}.excalidraw.md")
+    body = "```json\n" + json.dumps(data, indent=1, ensure_ascii=False) + "\n```"
+    path.write_text(head + body + text[m.end():], encoding="utf-8")
+    return len(imgs)
 
 
 def list_boards() -> list[dict]:

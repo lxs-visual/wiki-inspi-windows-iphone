@@ -21,13 +21,19 @@ def run(server_running: bool | None = None) -> list[dict]:
     out.append(_check("Python", sys.version_info >= (3, 10), sys.version.split()[0],
                       "Installe Python 3.11+ depuis python.org"))
     missing = []
-    for mod in ("fastapi", "uvicorn", "PIL", "pillow_heif", "yaml", "requests", "qrcode", "keyring", "networkx"):
+    for mod in ("fastapi", "uvicorn", "PIL", "pillow_heif", "yaml", "requests", "qrcode", "keyring", "networkx", "imageio_ffmpeg"):
         try:
             __import__(mod)
         except ImportError:
             missing.append(mod)
     out.append(_check("Dépendances", not missing, "toutes présentes" if not missing else "manquent : " + ", ".join(missing),
                       "Relance install.bat"))
+    try:
+        from . import media
+        ok = bool(media.ffmpeg())
+        out.append(_check("Vidéos (ffmpeg)", ok, media.ffmpeg()))
+    except Exception as e:  # noqa: BLE001
+        out.append(_check("Vidéos (ffmpeg)", False, str(e)[:80], "Relance install.bat"))
     out.append(_check("Configuration", CONFIG_PATH.exists(), str(CONFIG_PATH), "Lance Inspi une fois pour la créer"))
     v = store.VAULT
     try:

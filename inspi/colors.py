@@ -96,6 +96,116 @@ def color_name(hexc) -> str | None:
     return "Rose"
 
 
+# ---------------- palette calculée à partir des pixels ----------------
+# Noms français : la couleur la plus proche (distance Lab) donne le nom affiché.
+FR_NAMES = {
+    "noir": "#000000", "noir bleuté": "#0B1220", "anthracite": "#2B2B2E", "gris foncé": "#4A4A4F",
+    "gris": "#808080", "gris clair": "#BDBDBD", "gris perle": "#DCDCDC", "blanc cassé": "#F2EFE8", "blanc": "#FFFFFF",
+    "crème": "#F5EBD3", "beige": "#D9C3A0", "sable": "#C8A97E", "taupe": "#8B7D6B", "brun": "#6B4226",
+    "chocolat": "#3D2314", "caramel": "#B5651D", "terracotta": "#C65D3B", "rouille": "#A0461E",
+    "rouge": "#D62828", "rouge vif": "#FF1E1E", "bordeaux": "#6D1A2B", "framboise": "#C2185B", "corail": "#FF6F59",
+    "saumon": "#F4A28C", "rose pâle": "#F7CAD0", "rose": "#EC6FA4", "rose fluo": "#FF2D95", "magenta": "#D61AD6",
+    "orange": "#F77F00", "orange vif": "#FF5F00", "pêche": "#FFC09F", "abricot": "#F5A65B",
+    "jaune": "#FFD60A", "jaune pâle": "#FFF1A8", "moutarde": "#C9A227", "or": "#D4AF37", "ocre": "#CC8E35",
+    "vert citron": "#C6F432", "vert pomme": "#8BD346", "vert": "#2EA043", "vert sapin": "#1B4D3E", "kaki": "#6B705C",
+    "olive": "#7A7A33", "sauge": "#9CAF88", "vert menthe": "#98E2C6", "émeraude": "#0F9D6E", "turquoise": "#14B8A6",
+    "cyan": "#22D3EE", "bleu ciel": "#87CEEB", "bleu glacier": "#CFE8F3", "bleu": "#1D63ED", "bleu électrique": "#2F55FF",
+    "bleu roi": "#1C3FAA", "bleu marine": "#1E2A55", "bleu nuit": "#101935", "bleu pétrole": "#1F5662",
+    "bleu pur": "#0000FF", "vert fluo": "#00FF00", "jaune vif": "#FFFF00", "rouge pur": "#FF0000",
+    "lavande": "#B9A7E8", "lilas": "#C8A2C8", "violet": "#7C3AED", "violet profond": "#3E1E68", "prune": "#5E2750",
+}
+_FR_LAB = None
+
+
+def french_name(hexc: str) -> str:
+    global _FR_LAB
+    if _FR_LAB is None:
+        _FR_LAB = [(n, lab(h)) for n, h in FR_NAMES.items()]
+    lb = lab(hexc)
+    if not lb:
+        return ""
+    return min(_FR_LAB, key=lambda t: math.dist(t[1], lb))[0]
+
+
+def chroma(hexc: str) -> float:
+    lb = lab(hexc)
+    return math.hypot(lb[1], lb[2]) if lb else 0.0
+
+
+def _hex(rgb) -> str:
+    return "#%02X%02X%02X" % tuple(int(round(c)) for c in rgb[:3])
+
+
+def extract_palette(img, k: int = 6) -> dict:
+    """Palette réelle de l'image : regroupe les pixels (médiane), fusionne les teintes trop proches (Lab),
+    ignore les couleurs à moins de 2 %. Retourne palette [{hex,name,share}], couleur principale,
+    couleur d'accent et température."""
+    from PIL import Image
+    im = img.convert("RGB")
+    im.thumbnail((200, 200))
+    q = im.quantize(colors=16, method=Image.Quantize.MEDIANCUT, kmeans=3)
+    pal = q.getpalette()[: 16 * 3]
+    counts = sorted(q.getcolors(256) or [], reverse=True)
+    total = sum(c for c, _ in counts) or 1
+    clusters: list[list] = []  # [r, g, b, part]
+    for c, idx in counts:
+        rgb = pal[idx * 3: idx * 3 + 3]
+        part = c / total
+        hx = _hex(rgb)
+        for cl in clusters:
+            if distance(_hex(cl), hx) < 11:
+                w = cl[3] + part
+                for i in range(3):
+                    cl[i] = (cl[i] * cl[3] + rgb[i] * part) / w
+                cl[3] = w
+                break
+        else:
+            clusters.append([*map(float, rgb), part])
+    clusters = [cl for cl in clusters if cl[3] >= 0.02] or clusters[:1]
+    clusters.sort(key=lambda cl: -cl[3])
+    clusters = clusters[:k]
+    s = sum(cl[3] for cl in clusters) or 1
+    palette = [{"hex": _hex(cl), "name": french_name(_hex(cl)), "share": round(cl[3] / s, 3)} for cl in clusters]
+    # Couleur principale : la plus présente, sauf si c'est un fond neutre et qu'une vraie couleur pèse ≥ 15 %
+    main = palette[0]["hex"]
+    chromatic = [p for p in palette if chroma(p["hex"]) >= 18]
+    if chroma(main) < 12 and palette[0]["share"] < 0.65 and chromatic and chromatic[0]["share"] >= 0.15:
+        main = chromatic[0]["hex"]
+    others = [p for p in chromatic if p["hex"] != main]
+    accent = max(others, key=lambda p: chroma(p["hex"]) * (0.25 + p["share"]))["hex"] if others else None
+    return {"palette": palette, "main_color": main, "accent_color": accent, "color_temperature": temperature(palette)}
+
+
+def temperature(palette: list) -> str:
+    """chaud / froid / neutre, d'après la teinte pondérée des couleurs saturées."""
+    warm = cool = 0.0
+    for p in palette:
+        lb = lab(p["hex"])
+        if not lb:
+            continue
+        c = math.hypot(lb[1], lb[2])
+        if c < 12:
+            continue
+        hue = (math.degrees(math.atan2(lb[2], lb[1])) + 360) % 360
+        w = p["share"] * c
+        if hue < 100 or hue > 330:  # rouges, oranges, jaunes, roses chauds
+            warm += w
+        elif 150 < hue < 320:  # verts froids, bleus, violets
+            cool += w
+    if warm + cool < 4:
+        return "neutre"
+    return "chaud" if warm > cool * 1.25 else "froid" if cool > warm * 1.25 else "neutre"
+
+
+def palette_distance(a: list, b: list) -> float:
+    """Écart entre deux palettes (0 = identiques), pondéré par la part de chaque couleur."""
+    if not a or not b:
+        return 100.0
+    def side(x, y):
+        return sum(p.get("share", 0.2) * min(distance(p["hex"], q["hex"]) for q in y) for p in x) / (sum(p.get("share", 0.2) for p in x) or 1)
+    return (side(a, b) + side(b, a)) / 2
+
+
 # ---------------- filtres (règles par mots-clés sur ce que le modèle a écrit) ----------------
 TYPE = {
     "Photographie": r"photo|35mm|argentique|film-grain|grain|long-exposure|macro|objectif|depth-of-field",

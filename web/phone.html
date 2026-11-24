@@ -35,8 +35,8 @@ textarea{min-height:90px;resize:vertical}
   <div class="row"><div class="brand"><i></i>Inspi</div><a href="/"><button class="ghost">Galerie →</button></a></div>
 
   <label class="pick" id="pick">
-    <input type="file" id="files" accept="image/*" multiple>
-    <b>📷 Choisir des images</b>
+    <input type="file" id="files" accept="image/*,video/*" multiple>
+    <b>📷 Choisir des images ou vidéos</b>
     <span>captures, photos, enregistrées depuis Insta ou Pinterest</span>
   </label>
   <div class="previews" id="prev"></div>
@@ -59,13 +59,15 @@ if(navigator.standalone) $("#hint").hidden = true;
 
 $("#files").onchange = () => {
   $("#prev").innerHTML = "";
-  [...$("#files").files].slice(0,12).forEach(f => { const i=new Image(); i.src=URL.createObjectURL(f); $("#prev").append(i); });
+  [...$("#files").files].slice(0,12).forEach(f => {
+    const el = f.type.startsWith("video/") ? Object.assign(document.createElement("video"), {muted:true, playsInline:true}) : new Image();
+    el.src = URL.createObjectURL(f); el.style.cssText = "width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px"; $("#prev").append(el); });
 };
 
 $("#send").onclick = async () => {
   const files = [...$("#files").files], text = $("#text").value.trim(), note = $("#note").value.trim();
   if(!files.length && !text) return toast("Choisis une image ou écris un texte");
-  const b = $("#send"); b.disabled = true; b.textContent = "Envoi…";
+  const b = $("#send"); b.disabled = true; b.textContent = files.some(f=>f.type.startsWith("video/")) ? "Envoi de la vidéo…" : "Envoi…";
   const fd = new FormData();
   files.forEach(f => fd.append("file", f));
   fd.append("text", text); fd.append("note", note); fd.append("source", "iphone");

@@ -95,6 +95,7 @@ main{padding:18px 22px 120px}
 .selbar{position:fixed;left:50%;bottom:20px;transform:translate(-50%,160%);transition:.25s;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 8px 8px 18px;display:flex;gap:8px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.5);z-index:20}
 .selbar.show{transform:translate(-50%,0)}
 .selbar input{width:200px;border-radius:999px}
+.selbar button{white-space:nowrap}
 dialog{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:18px;padding:0;max-width:min(1180px,96vw);width:100%}
 dialog::backdrop{background:rgba(0,0,0,.78)}
 .det{display:grid;grid-template-columns:1.35fr 1fr;min-height:60vh}
@@ -134,6 +135,28 @@ body.dragging .drop{display:flex}
 .ed .row2 input{text-align:center}
 .ed label.ck{display:flex;gap:8px;align-items:center;font-size:13px}.ed label.ck input{width:auto}
 @media (max-width:860px){.ed{grid-template-columns:1fr}.ed .side{border-left:0}}
+.card .play{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:18px;pointer-events:none}
+.card .dur{position:absolute;right:8px;bottom:auto;top:8px;background:rgba(0,0,0,.72);border-radius:6px;padding:.1em .45em;font-size:11px;font-family:var(--mono)}
+.card .rm{position:absolute;top:8px;right:44px;width:30px;height:30px;padding:0;border-radius:50%;background:rgba(0,0,0,.65);border-color:transparent;font-size:15px;opacity:0}
+.card:hover .rm{opacity:1}
+.det .vis video{max-width:100%;max-height:82vh;border-radius:8px;background:#000}
+.famchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fam .tools{display:inline-flex;gap:6px;margin-left:auto}
+.fam .tools button{font-size:12px;padding:.25em .7em}
+.fam h3 .nm{outline:none;border-radius:6px;padding:0 4px}
+.fam h3 .nm[contenteditable=true]:focus{box-shadow:0 0 0 2px var(--acc)}
+.fam .strip .cell{position:relative;flex:none}
+.fam .strip .cell button{position:absolute;top:6px;right:6px;width:24px;height:24px;padding:0;border-radius:50%;background:rgba(0,0,0,.7);border-color:transparent;font-size:12px;opacity:0}
+.fam .strip .cell:hover button{opacity:1}
+.famhead{display:flex;align-items:center;gap:10px;margin:8px 0 14px}
+.famhead h2{margin:0;font-size:18px}
+.pr{display:grid;grid-template-columns:200px 1fr;gap:0;min-height:60vh}
+.pr .tabs2{border-right:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:4px}
+.pr .tabs2 button{text-align:left;border:0;border-radius:10px;background:none}
+.pr .tabs2 button.on{background:#232326;color:var(--ink)}
+.pr .body{padding:20px;display:flex;flex-direction:column;gap:10px;overflow:auto;max-height:80vh}
+.pr pre{white-space:pre-wrap;word-break:break-word;background:#0b0b0c;border:1px solid var(--line);border-radius:12px;padding:14px;font:13px/1.5 var(--mono);margin:0;max-height:46vh;overflow:auto}
+@media (max-width:860px){.pr{grid-template-columns:1fr}.pr .tabs2{flex-direction:row;flex-wrap:wrap;border-right:0}}
 .doc li{margin:.4em 0}.doc .ok{color:var(--ok)}.doc .ko{color:var(--err)}
 @media (max-width:860px){
   header{padding:10px 12px 6px}.top{flex-wrap:wrap;gap:8px}.search{order:5;flex-basis:100%;max-width:none}
@@ -179,12 +202,14 @@ body.dragging .drop{display:flex}
   <datalist id="boardlist"></datalist>
   <button class="primary" id="mkboard">Ajouter au moodboard</button>
   <button id="selsim">Similaires</button>
+  <button id="selfam">Famille…</button>
+  <button id="selrm" hidden>Retirer</button>
   <button class="danger ghost" id="seldel">Supprimer</button>
   <button class="ghost" id="clearsel">✕</button>
 </div>
 
 <dialog id="dlg"></dialog>
-<div class="drop">Dépose tes images ici</div>
+<div class="drop">Dépose tes images ou vidéos ici</div>
 <div class="toast" id="toast"><span id="toastmsg"></span><button id="undo" hidden>Annuler</button></div>
 
 <script>
@@ -200,6 +225,12 @@ async function api(path, opt={}){
   const j = await r.json().catch(()=>({}));
   if(!r.ok) throw new Error(j.error || r.statusText);
   return j;
+}
+function copyText(t){
+  try{ if(navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t); }catch(e){}
+  const ta = document.createElement("textarea"); ta.value = t; ta.style.cssText = "position:fixed;opacity:0";
+  document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); } finally { ta.remove(); }
+  return Promise.resolve();
 }
 const post = (p, body) => api(p, {method:"POST", body:JSON.stringify(body||{})});
 
@@ -227,8 +258,8 @@ async function loadFilters(){
   const fc = await api("/api/facets?"+params());
   const f = $("#filters"); f.innerHTML = "";
   const chip = (label, on, fn) => { const b=document.createElement("button"); b.className="chip"+(on?" on":""); b.textContent=label; b.onclick=fn; f.append(b); };
-  chip("Images", S.type==="image", ()=>{S.type=S.type==="image"?"":"image";refresh()});
-  chip("Textes", S.type==="text", ()=>{S.type=S.type==="text"?"":"text";refresh()});
+  for(const [k,l] of [["image","Images"],["video","Vidéos"],["screenshot","Captures d'écran"],["text","Textes"],["link","Liens"]])
+    chip(l, S.type===k, ()=>{S.type=S.type===k?"":k;refresh()});
   chip("En attente", S.status==="pending", ()=>{S.status=S.status==="pending"?"":"pending";refresh()});
   if(S.st.counts?.error) chip("Erreurs", S.status==="error", ()=>{S.status=S.status==="error"?"":"error";refresh()});
   if(S.st.incomplete) chip(`Fiches incomplètes (${S.st.incomplete})`, S.status==="incomplete", ()=>{S.status=S.status==="incomplete"?"":"incomplete";refresh()});
@@ -257,7 +288,8 @@ function card(it){
   d.className = "card" + (S.sel.has(it.id)?" sel":"");
   const title = it.title || it.page_title || (it.status==="fetch" ? "Récupération de l'image…" : it.status==="pending" ? "Classement en cours…" : it.status==="error" ? "Non classée" : "");
   let h = "";
-  if(it.type==="image" && it.image) h += `<img loading="lazy" src="/media/${it.id}/thumb" width="${it.width||1}" height="${it.height||1}" alt="">`;
+  if(it.type==="image" && it.image) h += `<img loading="lazy" src="/media/${it.id}/thumb" width="${it.width||1}" height="${it.height||1}" alt="">`
+    + (it.video ? `<span class="play">▶</span><span class="dur">${fmtDur(it.duration)}</span>` : "");
   else if(it.type==="image") h += `<div class="ph">${esc((it.source_url||it.image_url||"").replace(/^https?:\/\//,"").slice(0,40))}</div>`;
   else h += `<blockquote>${esc((it.text||"").slice(0,280))}${(it.text||"").length>280?"…":""}</blockquote>`;
   h += `<div class="meta"><div class="t">${esc(title)}</div>`;
@@ -272,10 +304,29 @@ function card(it){
   else if(it.duplicate_of) h += `<span class="badge">doublon ?</span>`;
   else if(it.color_distance!=null) h += `<span class="badge">Δ ${it.color_distance}</span>`;
   if(it.image) h += `<button class="pick" title="Sélectionner">${S.sel.has(it.id)?"✓":"+"}</button>`;
+  if(S.fam && (S.fam.kind==="board" || S.fam.kind==="manual")) h += `<button class="rm" title="${S.fam.kind==="board"?"Retirer du moodboard (reste sur le mur)":"Retirer de la famille"}">✕</button>`;
   d.innerHTML = h;
+  const rm = d.querySelector(".rm");
+  if(rm) rm.onclick = e => { e.stopPropagation(); removeFromGroup([it.id]); };
   d.onclick = e => { if(e.target.classList.contains("pick") || (document.body.classList.contains("picking") && it.image)) { e.stopPropagation(); toggleSel(it.id, d); } else openItem(it); };
   return d;
 }
+function fmtDur(s){ s = Math.round(s||0); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); }
+
+async function removeFromGroup(ids){
+  if(!S.fam) return;
+  try{
+    if(S.fam.kind==="board"){
+      const r = await post("/api/board/remove", {name:S.fam.name, ids});
+      toast(`${r.removed} image(s) retirée(s) du moodboard (toujours sur le mur)`);
+    } else {
+      await post("/api/families", {action:"remove", id:S.fam.id, ids});
+      toast("Retirée(s) de la famille");
+    }
+    S.fam.ids = S.fam.ids.filter(i => !ids.includes(i)); ids.forEach(i=>S.sel.delete(i)); updSel(); refresh(); loadBoards();
+  }catch(e){ toast(e.message) }
+}
+
 function toggleSel(id, el){
   S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id);
   if(el){ el.classList.toggle("sel", S.sel.has(id)); const p=el.querySelector(".pick"); if(p) p.textContent = S.sel.has(id) ? "✓" : "+"; }
@@ -285,6 +336,8 @@ function updSel(){
   const n = S.sel.size;
   $("#selbar").classList.toggle("show", n>0); document.body.classList.toggle("picking", n>0);
   $("#selcount").textContent = n + " image" + (n>1?"s":"");
+  $("#selrm").hidden = !(S.fam && (S.fam.kind==="board" || S.fam.kind==="manual"));
+  $("#selrm").textContent = S.fam && S.fam.kind==="board" ? "Retirer du moodboard" : "Retirer de la famille";
 }
 
 function grid(items, banner=""){
@@ -311,23 +364,57 @@ async function refresh(){
   let items = await api("/api/items?"+params());
   if(S.fam){ const ids = new Set(S.fam.ids); items = items.filter(i=>ids.has(i.id)); }
   S.items = items;
-  grid(items, S.fam ? `<div class="banner"><b>Images de la ${esc(S.fam.label)}</b><button>✕ Fermer</button></div>` : "");
+  grid(items, S.fam ? `<div class="banner"><b>${S.fam.kind==="board" ? "Moodboard « "+esc(S.fam.name)+" » · ✕ sur une image pour la retirer du board (elle reste sur le mur)" : S.fam.kind==="manual" ? "Famille « "+esc(S.fam.label)+" » · ✕ sur une image pour la retirer" : "Famille automatique « "+esc(S.fam.label)+" »"}</b><button>✕ Fermer</button></div>` : "");
 }
 
 async function showFamilies(){
   $("#filters").innerHTML = "";
-  const [fams, items] = await Promise.all([api("/api/families"), api("/api/items?type=image&limit=5000")]);
+  const [fams, items] = await Promise.all([api("/api/families"), api("/api/items?limit=5000")]);
   const by = new Map(items.map(i=>[i.id,i]));
-  const v = $("#view"); v.innerHTML = fams.length ? `<p class="mono">Les images proches (style, technique, ambiance, couleur) se regroupent en familles. Elles se recalculent à chaque nouvelle inspi classée.</p>` :
-    `<div class="empty"><b>Pas encore de familles</b>Il faut au moins quelques images classées qui se ressemblent.</div>`;
-  for(const f of fams){
+  const v = $("#view");
+  v.innerHTML = `<div class="banner"><b>Tes familles d'abord, puis les suggestions automatiques (style, technique, ambiance et palette). Garde une suggestion pour pouvoir la renommer et la modifier.</b><button class="primary" id="newfam">＋ Nouvelle famille</button></div>`;
+  $("#newfam").onclick = async () => { const name = prompt("Nom de la famille :"); if(!name) return; await post("/api/families", {action:"create", name, ids:[]}); toast("Famille créée : ajoute des images avec « Famille… » sur le Mur"); showFamilies(); };
+  const section = (f, manual) => {
     const s = document.createElement("section"); s.className="fam";
-    s.innerHTML = `<h3>${esc(f.label)} <small>${f.size} images</small> <button class="ghost">Tout voir →</button></h3><div class="strip"></div>`;
+    s.innerHTML = `<h3><span class="nm" ${manual?'contenteditable="true" title="Clique pour renommer"':""}>${esc(f.label)}</span> <small>${f.size} images${manual?"":" · suggestion"}</small>
+      <span class="tools">${manual ? `<button data-a="see">Tout voir</button><button class="danger ghost" data-a="del">Supprimer la famille</button>` : `<button data-a="keep">Garder et renommer</button><button data-a="see">Tout voir</button>`}</span></h3><div class="strip"></div>`;
     const strip = s.querySelector(".strip");
-    f.ids.slice(0,24).forEach(id => { const it = by.get(id); if(!it) return; const im = new Image(); im.loading="lazy"; im.src=`/media/${id}/thumb`; im.onclick=()=>openItem(it); strip.append(im); });
-    s.querySelector("button").onclick = () => { S.fam={...f, label:"famille « "+f.label+" »"}; setView("wall"); };
+    f.ids.slice(0,30).forEach(id => {
+      const it = by.get(id); if(!it || !it.image) return;
+      const c = document.createElement("div"); c.className = "cell";
+      c.innerHTML = `<img loading="lazy" src="/media/${id}/thumb" alt="">${manual?`<button title="Retirer de la famille">✕</button>`:""}`;
+      c.querySelector("img").onclick = () => openItem(it);
+      const b = c.querySelector("button"); if(b) b.onclick = async () => { await post("/api/families", {action:"remove", id:f.id, ids:[id]}); c.remove(); };
+      strip.append(c);
+    });
+    const nm = s.querySelector(".nm");
+    if(manual){
+      nm.onkeydown = e => { if(e.key==="Enter"){ e.preventDefault(); nm.blur(); } };
+      nm.onblur = async () => { const name = nm.innerText.trim(); if(name && name!==f.label){ await post("/api/families", {action:"rename", id:f.id, name}); f.label = name; toast("Renommée"); } };
+      s.querySelector('[data-a="del"]').onclick = async () => { if(!confirm(`Supprimer la famille « ${f.label} » ? (les images restent sur le mur)`)) return; await post("/api/families", {action:"delete", id:f.id}); showFamilies(); };
+    } else {
+      s.querySelector('[data-a="keep"]').onclick = async () => { const name = prompt("Nom de cette famille :", f.label); if(!name) return; await post("/api/families", {action:"create", name, ids:f.ids}); toast("Famille gardée : tu peux maintenant la modifier"); showFamilies(); };
+    }
+    s.querySelector('[data-a="see"]').onclick = () => { S.fam = {kind: manual?"manual":"auto", id:f.id, label:f.label, ids:f.ids}; setView("wall"); };
     v.append(s);
-  }
+  };
+  if(fams.manual.length) v.insertAdjacentHTML("beforeend", `<div class="famhead"><h2>Mes familles</h2></div>`);
+  fams.manual.forEach(f => section(f, true));
+  v.insertAdjacentHTML("beforeend", `<div class="famhead"><h2>Suggestions automatiques</h2><span class="mono">${fams.auto.length ? "recalculées à chaque nouvelle inspi" : "il faut plus d'images classées qui se ressemblent"}</span></div>`);
+  fams.auto.forEach(f => section(f, false));
+}
+
+async function pickFamily(ids){
+  const fams = await api("/api/families");
+  const dlg = $("#dlg");
+  dlg.innerHTML = `<div style="padding:22px;max-width:460px;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;justify-content:space-between"><b style="font-size:18px">Ajouter ${ids.length} image${ids.length>1?"s":""} à une famille</b><button class="ghost" id="pf-x">✕</button></div>
+    ${fams.manual.map(f=>`<button data-id="${f.id}" style="text-align:left">${esc(f.label)} <span class="mono">${f.size}</span></button>`).join("") || `<span class="mono">Aucune famille pour l'instant.</span>`}
+    <div style="display:flex;gap:8px;margin-top:6px"><input id="pf-name" placeholder="Nouvelle famille…"><button class="primary" id="pf-new">Créer</button></div></div>`;
+  $("#pf-x").onclick = () => dlg.close();
+  dlg.querySelectorAll("[data-id]").forEach(b => b.onclick = async () => { await post("/api/families", {action:"add", id:b.dataset.id, ids}); toast("Ajoutée(s) à la famille"); dlg.close(); S.sel.clear(); updSel(); refresh(); });
+  $("#pf-new").onclick = async () => { const name = $("#pf-name").value.trim(); if(!name) return; await post("/api/families", {action:"create", name, ids}); toast(`Famille « ${name} » créée`); dlg.close(); S.sel.clear(); updSel(); refresh(); };
+  if(!dlg.open) dlg.showModal();
 }
 
 async function showDups(){
@@ -361,7 +448,7 @@ async function showBoards(){
     c.innerHTML = `<div class="cov n${Math.min(cov.length,4)}">${cov.length ? cov.map(id=>`<img loading="lazy" src="/media/${id}/thumb" alt="">`).join("") : `<span class="mono">aperçu indisponible</span>`}</div>
       <div class="bm"><b>${esc(b.name)}</b><span class="mono">${b.images} images · ${esc(b.updated)}</span>
       <div class="ba">${S.st.is_pc?`<a href="${b.obsidian}"><button class="primary">Ouvrir dans Obsidian</button></a>`:""}<button data-a="see">Voir les images</button><button data-a="sim">Similaires</button></div></div>`;
-    c.querySelector(".cov").onclick = c.querySelector('[data-a="see"]').onclick = () => { S.fam = {label:"moodboard « "+b.name+" »", ids:b.ids}; setView("wall"); };
+    c.querySelector(".cov").onclick = c.querySelector('[data-a="see"]').onclick = () => { S.fam = {kind:"board", name:b.name, label:b.name, ids:b.ids}; setView("wall"); };
     c.querySelector('[data-a="sim"]').onclick = () => { S.sim = b.ids; setView("wall"); };
     g.append(c);
   }
@@ -541,7 +628,7 @@ function openItem(it){
   const uses = S.st.use_for || [];
   const pal = (m.palette||[]).length ? m.palette : it.palette.map(h=>({hex:h,name:""}));
   dlg.innerHTML = `<div class="det">
-    <div class="vis">${it.image ? `<img src="/media/${it.id}/full?v=${encodeURIComponent(it.meta.edited_at||"")}" alt="">` : it.type==="text" ? `<blockquote>${esc(it.text)}</blockquote>` : `<div class="mono">${esc(it.error||"Image en cours de récupération…")}</div>`}</div>
+    <div class="vis">${it.video ? `<video src="/media/${it.id}/video" controls loop playsinline poster="/media/${it.id}/full"></video>` : it.image ? `<img src="/media/${it.id}/full?v=${encodeURIComponent(it.meta.edited_at||"")}" alt="">` : it.type==="text" ? `<blockquote>${esc(it.text)}</blockquote>` : `<div class="mono">${esc(it.error||"Image en cours de récupération…")}</div>`}</div>
     <div class="info">
       <div style="display:flex;justify-content:space-between;gap:10px"><h2 contenteditable="true" id="e-title">${esc(it.title||it.page_title||"Sans titre")}</h2><button class="ghost" id="e-close">✕</button></div>
       <div class="mono">${esc(it.created.replace("T"," "))} · ${esc(it.source)}${it.width?` · ${it.width}×${it.height}`:""}</div>
@@ -560,7 +647,7 @@ function openItem(it){
       ${(m.also_seen||[]).map(s=>`<a class="mono" href="${esc(s.url)}" target="_blank" rel="noopener">↗ aussi vue le ${esc(s.date)}</a>`).join("")}
       <div class="actions">
         <button class="primary" id="e-save">Enregistrer</button>
-        ${it.image?`<button id="e-sim">Images similaires</button><button id="e-crop">✂ Rogner / redimensionner</button>`:""}
+        ${it.image?`<button id="e-sim">Images similaires</button>${it.video?"":`<button id="e-crop">✂ Rogner / redimensionner</button>`}<button id="e-fam">Famille…</button>`:""}
         ${obs && S.st.is_pc?`<a href="${obs}"><button>Obsidian</button></a>`:""}
         <button id="e-retry">${it.status==="fetch"||(!it.image&&it.type==="image")?"Réessayer":"Reclasser"}</button>
         <button class="danger ghost" id="e-del">Supprimer</button>
@@ -568,7 +655,7 @@ function openItem(it){
     </div></div>`;
   $("#e-close").onclick = () => dlg.close();
   dlg.querySelectorAll(".pal div").forEach(el => {
-    el.onclick = () => { navigator.clipboard?.writeText(el.dataset.hex); toast(el.dataset.hex + " copié"); };
+    el.onclick = () => { copyText(el.dataset.hex); toast(el.dataset.hex + " copié"); };
     el.ondblclick = () => { dlg.close(); setColor(el.dataset.hex); S.sim=null; S.fam=null; setView("wall"); };
   });
   $("#e-save").onclick = async () => {
@@ -577,6 +664,7 @@ function openItem(it){
     toast("Enregistré"); dlg.close(); refresh();
   };
   if($("#e-sim")) $("#e-sim").onclick = () => { dlg.close(); S.sim=[it.id]; setView("wall"); };
+  if($("#e-fam")) $("#e-fam").onclick = () => pickFamily([it.id]);
   if($("#e-crop")) $("#e-crop").onclick = () => openEditor(it);
   $("#e-retry").onclick = async () => { await post(`/api/item/${it.id}/retry`); toast("Relancé"); dlg.close(); refresh(); poll(); };
   $("#e-del").onclick = async () => { dlg.close(); del([it.id]); };
@@ -596,6 +684,8 @@ $("#mkboard").onclick = async () => {
 };
 $("#selsim").onclick = () => { S.sim=[...S.sel]; setView("wall"); };
 $("#seldel").onclick = () => del([...S.sel]);
+$("#selrm").onclick = () => removeFromGroup([...S.sel]);
+$("#selfam").onclick = () => pickFamily([...S.sel]);
 $("#clearsel").onclick = () => { S.sel.clear(); updSel(); refresh(); };
 async function loadBoards(){ const b = await api("/api/boards"); $("#boardlist").innerHTML = b.map(x=>`<option value="${esc(x.name)}">${x.images} images</option>`).join(""); }
 
@@ -637,7 +727,7 @@ addEventListener("dragleave", () => { if(--dragN<=0){ dragN=0; document.body.cla
 addEventListener("dragover", e => e.preventDefault());
 addEventListener("drop", e => {
   e.preventDefault(); dragN=0; document.body.classList.remove("dragging");
-  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith("image/") || f.type.startsWith("video/") || /\.(heic|heif|mov|mp4|webm|m4v)$/i.test(f.name));
   if(files.length) return upload(files);
   const url = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
   if(/^https?:\/\//.test(url)) upload([], {text:url.trim()});

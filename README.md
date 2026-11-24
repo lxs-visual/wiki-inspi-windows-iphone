@@ -3,7 +3,7 @@
 # Wiki Inspi · Windows + iPhone app
 
 **Ta bibliothèque d'inspirations visuelles, sur ton PC Windows et dans ta poche.**
-Capture une image en un geste (iPhone, navigateur, dossier). Une IA en fait une fiche détaillée (palette, style, technique, ambiance…). Tu la retrouves par couleur, par style ou par ressemblance, et tu la poses dans des moodboards Excalidraw, dans Obsidian.
+Capture une image ou une vidéo en un geste (iPhone, navigateur, Instagram, dossier). Une IA en fait une fiche détaillée (style, technique, ambiance…) et la palette est mesurée sur les pixels. Tu la retrouves par couleur, par style ou par ressemblance, et tu la poses dans des moodboards Excalidraw, dans Obsidian.
 
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4)
 ![iPhone](https://img.shields.io/badge/iPhone-Raccourci%20%2B%20web%20app-black)
@@ -52,12 +52,14 @@ Glisser / Ctrl+V ─────────────┘        │          
 ```
 
 - **Tout reste chez toi** : les images, les notes et l'IA locale tournent sur ton PC. L'iPhone parle au PC directement par ton Wi‑Fi.
-- **Une fiche par image** : titre, description, medium, style, mouvement, ambiance, technique, palette nommée avec la part de chaque couleur, couleur principale, température, sujet, composition, lumière, typo, texture, époque, artistes proches, usages et thèmes.
-- **Des outils de designer** : recherche par couleur, images similaires, familles, moodboards, rognage et redimensionnement.
+- **Une fiche par image ou vidéo** : titre, description, medium, style, mouvement, ambiance, technique, sujet, composition, lumière, typo, texture, époque, artistes proches, usages et thèmes. La palette (couleurs nommées, part de chaque couleur, couleur principale, accent, température) est calculée sur les pixels.
+- **Des outils de designer** : recherche par couleur, images similaires, familles modifiables, moodboards, rognage et redimensionnement.
 
 ---
 
 ## Nouveautés par rapport à la V1 (wiki-inspi)
+
+> **Nouveau en 2.1** : vidéos (fichiers, iPhone, Reels Instagram enregistrés pendant la lecture), clic droit sur Instagram avec le nom du profil, couleurs mesurées sur les pixels, familles modifiables et mieux formées, retrait d'une image d'un moodboard, tri du mur par type (images, vidéos, captures d'écran, textes, liens). Détail dans le [journal des versions](CHANGELOG.md).
 
 La V1, [wiki-inspi](https://github.com/aion88/wiki-inspi) d'aion88, tourne sur **macOS** avec une extension Chrome/Brave et un dossier de dépôt. Cette version garde l'esprit et une partie des idées de la V1, et ajoute tout ce qui suit.
 
@@ -92,7 +94,9 @@ La V1, [wiki-inspi](https://github.com/aion88/wiki-inspi) d'aion88, tourne sur *
 - **Recherche par couleur** : pastille arc‑en‑ciel, distance perceptuelle Lab, et double‑clic sur une couleur de la palette pour chercher cette couleur.
 - **Filtres** : type, technique, sujet, couleur, température, usage, plus tags, images, textes, en attente, erreurs, fiches incomplètes.
 - **Tris** : récentes, anciennes, couleur, titre, famille, moodboard.
-- **Images similaires** (depuis une image ou une sélection), **Familles** d'images, vue **Doublons** avec la copie à garder suggérée.
+- **Images similaires** (depuis une image ou une sélection), vue **Doublons** avec la copie à garder suggérée.
+- **Familles** (2.1) : suggestions automatiques plus cohérentes (style, medium, technique, thèmes et palette complète, voisins réciproques uniquement), et **tes propres familles** : créer, renommer, ajouter ou retirer des images, garder une suggestion.
+- **Tri par type** (2.1) : images, vidéos, captures d'écran (détectées automatiquement), textes, liens.
 - **Corbeille avec « Annuler »** : une image utilisée dans un moodboard n'est jamais effacée.
 - **Glisser‑déposer** et **Ctrl+V** d'une image ou d'un lien.
 - **Fiche complète** affichée, avec tags, usages et note modifiables, et un lien vers la source et les autres endroits où l'image a été vue.
@@ -106,14 +110,22 @@ La V1, [wiki-inspi](https://github.com/aion88/wiki-inspi) d'aion88, tourne sur *
 
 ### 🧩 Moodboards
 - Création **depuis une sélection**, **depuis une recherche** (« Moodboard avec ces résultats ») ou en ligne de commande.
+- **Retirer une image d'un moodboard** (2.1) sans la supprimer du mur : onglet Moodboards → *Voir les images* → ✕ sur l'image.
 - **Onglet Moodboards** avec aperçu (mosaïque), et pour chaque board : ouvrir dans Obsidian, voir les images, images similaires.
 - Ajouter des images à un board existant ne déplace rien, même s'il est compressé, et une sauvegarde est faite avant chaque écriture.
 - Titre, légendes (titre, auteur, site) et bande de palette sur chaque board.
+
+### 🎬 Vidéos (2.1)
+- Ajout de **vidéos** depuis le PC (glisser-déposer, dossier), l'iPhone (menu Partager) ou le navigateur.
+- **Reels et vidéos Instagram** : clic droit → *Envoyer à Inspi* enregistre la vidéo pendant sa lecture (60 s max, avec le son), avec le **@profil** et le lien du post. Ou *Envoyer l'image affichée de la vidéo* pour un plan fixe.
+- Les vidéos iPhone (HEVC) sont converties en MP4 pour se lire partout ; image d'aperçu, durée, lecture dans la galerie et dans Obsidian.
+- La fiche IA d'une vidéo est faite sur 4 images clés (mouvement, rythme, transitions).
 
 ### 🌐 Capture
 - **Extension Chrome *et* Edge**, qui se **connecte toute seule** à l'appli (pas de jeton à recopier). Elle envoie une image, un texte, un lien ou la page entière, avec une notification.
 - **Auteur** lu sur la page (Pinterest, Behance, Are.na, Wikimedia, métadonnées). L'IA peut seulement proposer une *estimation*, affichée avec son niveau de confiance.
 - **Doublons à l'arrivée** : une image identique n'est pas recréée, la nouvelle source est ajoutée à sa fiche.
+- **Clic droit à travers les calques** (2.1) : Instagram, Pinterest, Behance… l'extension trouve elle-même l'image ou la vidéo sous le curseur, et lit le **@profil Instagram** et le lien du post.
 - **Obsidian Web Clipper** : modèles fournis, et les notes clippées sont importées automatiquement.
 
 ### 🗂 Obsidian
@@ -127,6 +139,10 @@ La V1, [wiki-inspi](https://github.com/aion88/wiki-inspi) d'aion88, tourne sur *
 | Fiche d'une image | App iPhone | Familles |
 |---|---|---|
 | ![Fiche](docs/captures/fiche.png) | ![iPhone](docs/captures/app-iphone.png) | ![Familles](docs/captures/familles.png) |
+
+| Vidéo |
+|---|
+| ![Vidéo](docs/captures/video.png) |
 
 | Moodboards | Réglages de l'IA | Rogner / redimensionner |
 |---|---|---|
@@ -180,7 +196,7 @@ Le PC et l'iPhone doivent être sur le **même Wi‑Fi**.
 La page d'appairage du PC affiche l'**URL** et l'**en‑tête** à copier. Dans l'app **Raccourcis** :
 
 1. **＋** → nomme le raccourci **Inspi**.
-2. Touche **ⓘ** → active **Afficher dans la feuille de partage**. Dans « Recevoir », garde **Images, Texte, URL, Pages web Safari**. Si aucune entrée : **Demander → Photos**.
+2. Touche **ⓘ** → active **Afficher dans la feuille de partage**. Dans « Recevoir », garde **Images, Médias, Texte, URL, Pages web Safari** (Médias = les vidéos). Si aucune entrée : **Demander → Photos**.
 3. Ajoute **Répéter avec chaque élément** (de *Entrée du raccourci*). Le bloc **Fin de la répétition** s'ajoute tout seul.
 4. **À l'intérieur** de la boucle, ajoute **Obtenir le contenu de l'URL** :
    - URL : `http://<IP-du-PC>:18765/api/capture`
@@ -242,8 +258,9 @@ Duplique le raccourci et remplace l'entrée par l'action **Prendre une capture d
 ### Capturer
 | D'où | Comment |
 |---|---|
-| **iPhone** | Partager → **Inspi** (image ou lien), l'app Inspi de l'écran d'accueil, ou deux tapes au dos |
-| **Navigateur** | Clic droit → **Envoyer à Inspi** (image, texte sélectionné, lien, page) |
+| **iPhone** | Partager → **Inspi** (image, vidéo ou lien), l'app Inspi de l'écran d'accueil, ou deux tapes au dos |
+| **Navigateur** | Clic droit → **Envoyer à Inspi** (image, vidéo, texte sélectionné, lien, page), y compris sur Instagram |
+| **Reel Instagram** | Clic droit sur la vidéo → **Envoyer à Inspi** : un bandeau « ● Inspi enregistre » s'affiche ; clique dessus pour arrêter avant la fin |
 | **Galerie** | Glisser‑déposer des fichiers, ou **Ctrl+V** d'une image ou d'un lien |
 | **Obsidian Web Clipper** | Importe les modèles du dossier `clipper/` (créé au premier lancement) |
 | **Dossier** | Dépose des fichiers dans `Inspi Drop` (dans ton dossier utilisateur) |
@@ -258,6 +275,9 @@ Chaque inspi passe par trois étapes : **récupération** (pour un lien), puis *
 - **Images similaires** : depuis une fiche, ou depuis une sélection avec le bouton *Similaires*.
 - **Familles** : onglet *Familles*, pour voir des groupes d'images proches.
 - **Doublons** : onglet *Doublons*, avec la copie à garder entourée en vert.
+
+### Familles
+Onglet **Familles** : *Garder et renommer* une suggestion pour la rendre modifiable, ✕ sur une image pour la retirer, clic sur le nom pour le changer. Sur le Mur : sélection (**＋**) → **Famille…** pour ajouter des images à une famille ou en créer une.
 
 ### Modifier une fiche
 Clique sur une image : tu peux modifier le titre, les tags, les usages et ta note. Tu peux aussi **Reclasser**, **Supprimer** (avec *Annuler*) ou ouvrir la note dans **Obsidian**.
@@ -354,7 +374,9 @@ Commence toujours par **⋯ → Diagnostic** (ou `inspi doctor`). Il vérifie Py
 | `_Inspi.base` vide ou en erreur | Mets Obsidian à jour (1.9+) |
 | Blocs de code au lieu de listes dans `_Inspi` | Active le plugin Dataview |
 | Fiches incomplètes | ⋯ → Réglages IA → **Tester**, essaie un autre modèle ou Claude, puis **Reclasser** |
-| Lien Instagram gardé comme simple lien | Instagram demande d'être connecté : partage plutôt l'image ou une capture |
+| Lien Instagram gardé comme simple lien | Instagram demande d'être connecté : utilise plutôt le clic droit de l'extension sur la photo ou la vidéo |
+| « Vidéo non enregistrable » | Le site bloque l'enregistrement : l'image affichée est gardée à la place, avec le lien |
+| Vidéo iPhone longue à arriver | Les vidéos HEVC sont converties en MP4 sur le PC : compte quelques secondes par minute de vidéo |
 | Voir ce qui se passe | `start-console.bat` (journal en direct) ou `Documents\Inspi\.inspi\inspi.log` |
 
 ---
@@ -386,9 +408,10 @@ wiki-inspi/
 │  ├─ enrich.py           IA (Ollama / Claude), fiches, contrôle de complétude
 │  ├─ store.py            notes Obsidian, index SQLite, corbeille, éditeur d'images
 │  ├─ fetcher.py          récupération des liens (og:image, Pinterest HD)
-│  ├─ similar.py          similaires, familles, doublons
+│  ├─ similar.py          similaires, familles (auto + les tiennes), doublons
+│  ├─ media.py            vidéos (aperçu, images clés, conversion)
 │  ├─ boards.py           moodboards Excalidraw
-│  ├─ colors.py           couleurs (Lab), filtres
+│  ├─ colors.py           palette mesurée (Lab), noms des couleurs, filtres
 │  ├─ obsidian.py         coffre, vues Bases, plugins, Web Clipper
 │  ├─ winsetup.py         icônes Windows, installation de l'extension
 │  ├─ doctor.py · cli.py · watcher.py · auth.py · config.py

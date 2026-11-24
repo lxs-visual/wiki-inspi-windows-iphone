@@ -7,7 +7,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import obsidian, store
+from . import media, obsidian, store
 from .config import CFG
 
 log = logging.getLogger("inspi.watch")
@@ -49,7 +49,9 @@ class DropWatcher(threading.Thread):
             self.sizes.pop(p, None)
             ext = p.suffix.lower()
             try:
-                if ext in store.ALLOWED:
+                if ext in media.VIDEO_EXT:
+                    store.add_video(p.read_bytes(), p.name, source="drop")
+                elif ext in store.ALLOWED:
                     store.add_image(p.read_bytes(), p.name, source="drop")
                 elif ext in (".txt", ".md"):
                     store.add_text(p.read_text(encoding="utf-8", errors="ignore"), source="drop")

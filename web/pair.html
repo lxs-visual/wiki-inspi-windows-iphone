@@ -48,7 +48,7 @@ code,.val{font-family:var(--mono);font-size:13px;background:#0b0b0c;border:1px s
 
       <section>
         <h2><span>2</span>Crée le Raccourci « Inspi » (envoi en un geste)</h2>
-        <p>Il ajoute <b>Inspi</b> dans le menu Partager de toutes les applis (Photos, Pinterest, Instagram, Safari…). Tu peux partager une image <b>ou un lien</b> : pour un lien, le PC va chercher l'image de la page lui‑même (l'original HD pour Pinterest).</p>
+        <p>Il ajoute <b>Inspi</b> dans le menu Partager de toutes les applis (Photos, Pinterest, Instagram, Safari…). Tu peux partager une image, une <b>vidéo</b> ou un <b>lien</b> : pour un lien, le PC va chercher l'image de la page lui‑même (l'original HD pour Pinterest).</p>
         <div class="kv">
           <span class="mono">URL</span><span class="val" id="u">{{BASE}}/api/capture</span><button onclick="cp('u')">Copier</button>
           <span class="mono">En‑tête</span><span class="val" id="h">Bearer {{TOKEN}}</span><button onclick="cp('h')">Copier</button>
@@ -56,7 +56,7 @@ code,.val{font-family:var(--mono);font-size:13px;background:#0b0b0c;border:1px s
         <p class="mono">Astuce : copie ces deux valeurs dans une note Apple partagée, ou envoie‑les‑toi par AirDrop, pour les coller sur l'iPhone.</p>
         <ol>
           <li>App <b>Raccourcis</b> → <b>＋</b> → nomme‑le <b>Inspi</b>.</li>
-          <li>Touche ⓘ (en bas) → active <b>Afficher dans la feuille de partage</b>. En haut, dans « Recevoir », garde <b>Images, Texte, URL, Pages web Safari</b>. Si aucune entrée : <b>Demander</b> → Photos.</li>
+          <li>Touche ⓘ (en bas) → active <b>Afficher dans la feuille de partage</b>. En haut, dans « Recevoir », garde <b>Images, Médias, Texte, URL, Pages web Safari</b> (Médias = les vidéos). Si aucune entrée : <b>Demander</b> → Photos.</li>
           <li>Ajoute l'action <b>Répéter avec chaque élément</b> de <i>Entrée du raccourci</i>.</li>
           <li>Dedans, ajoute <b>Obtenir le contenu de l'URL</b> :
             <ul>

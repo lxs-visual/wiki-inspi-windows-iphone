@@ -1,5 +1,18 @@
 # Journal des versions
 
+## 2.1.0 (novembre 2026)
+
+### Ajouté
+- **Vidéos** : ajout depuis le PC, l'iPhone (Médias) ou l'extension ; conversion des vidéos HEVC en MP4 ; image d'aperçu, durée, lecture dans la galerie et dans Obsidian ; fiche IA faite sur 4 images clés.
+- **Instagram** : clic droit qui passe à travers les calques sur les photos et vidéos ; enregistrement des Reels pendant leur lecture (60 s max, avec le son) ; nom du profil (@compte) et lien du post enregistrés ; option « Envoyer l'image affichée de la vidéo ».
+- **Familles modifiables** : créer, renommer, supprimer, ajouter ou retirer des images, garder une suggestion.
+- **Retirer une image d'un moodboard** sans la supprimer du mur ; images et légendes groupées dans les nouveaux boards.
+- **Tri du mur par type** : images, vidéos, captures d'écran (détection automatique), textes, liens.
+
+### Amélioré
+- **Couleurs** : palette mesurée sur les pixels (et non plus estimée par l'IA), 60 noms de couleurs en français, couleur principale qui ignore les fonds neutres, couleur d'accent, température calculée. Les anciennes images sont recalculées au premier lancement.
+- **Familles automatiques** : palette complète, voisins réciproques uniquement, noms tirés des traits vraiment distinctifs.
+
 ## 2.0.1 (novembre 2026)
 
 ### Corrigé
