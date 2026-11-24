@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Appairer l'iPhone · Inspi</title>
+<link rel="stylesheet" href="/app.css">
+<style>
+body{padding:40px 24px}
+.wrap{max-width:980px;margin:0 auto}
+h1{letter-spacing:-.03em;margin:.2em 0 .1em}
+.lead{color:var(--mute);margin:0 0 28px}
+.cols{display:grid;grid-template-columns:300px 1fr;gap:32px;align-items:start}
+.qr{background:#fff;border-radius:18px;padding:18px}
+.qr svg{width:100%;height:auto;display:block}
+section{border:1px solid var(--line);border-radius:18px;padding:20px 22px;margin-bottom:18px;background:var(--panel)}
+h2{font-size:17px;margin:0 0 12px;display:flex;gap:.5em;align-items:center}
+h2 span{background:var(--acc);color:#111;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+ol{margin:0;padding-left:1.2em}li{margin:.35em 0}
+code,.val{font-family:var(--mono);font-size:13px;background:#0b0b0c;border:1px solid var(--line);border-radius:8px;padding:.15em .45em}
+.kv{display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center;margin:10px 0}
+.kv .val{padding:.5em .7em;overflow-wrap:anywhere}
+.warn{color:var(--warn)}
+@media (max-width:800px){.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><i></i>Inspi</div>
+  <h1>Appairer ton iPhone</h1>
+  <p class="lead">L'iPhone et le PC doivent être sur le même Wi‑Fi. Rien ne passe par Internet.</p>
+
+  <div class="cols">
+    <div>
+      <div class="qr">{{QR}}</div>
+      <p class="mono" style="text-align:center">Scanne avec l'appareil photo de l'iPhone</p>
+    </div>
+    <div>
+      <section>
+        <h2><span>1</span>Scanne le QR code</h2>
+        <ol>
+          <li>Ouvre l'appareil photo, vise le QR code, touche le lien jaune.</li>
+          <li>Safari ouvre la page <b>Envoyer à Inspi</b> : ton iPhone est appairé.</li>
+          <li>Dans Safari : <b>Partager → Sur l'écran d'accueil</b> pour en faire une appli.</li>
+        </ol>
+        <p class="mono">Si la page ne s'ouvre pas : autorise Python dans le pare‑feu Windows (réseau <b>privé</b>), et vérifie que ton Wi‑Fi est réglé en « réseau privé » dans Windows.</p>
+      </section>
+
+      <section>
+        <h2><span>2</span>Crée le Raccourci « Inspi » (envoi en un geste)</h2>
+        <p>Il ajoute <b>Inspi</b> dans le menu Partager de toutes les applis (Photos, Pinterest, Instagram, Safari…). Tu peux partager une image <b>ou un lien</b> : pour un lien, le PC va chercher l'image de la page lui‑même (l'original HD pour Pinterest).</p>
+        <div class="kv">
+          <span class="mono">URL</span><span class="val" id="u">{{BASE}}/api/capture</span><button onclick="cp('u')">Copier</button>
+          <span class="mono">En‑tête</span><span class="val" id="h">Bearer {{TOKEN}}</span><button onclick="cp('h')">Copier</button>
+        </div>
+        <p class="mono">Astuce : copie ces deux valeurs dans une note Apple partagée, ou envoie‑les‑toi par AirDrop, pour les coller sur l'iPhone.</p>
+        <ol>
+          <li>App <b>Raccourcis</b> → <b>＋</b> → nomme‑le <b>Inspi</b>.</li>
+          <li>Touche ⓘ (en bas) → active <b>Afficher dans la feuille de partage</b>. En haut, dans « Recevoir », garde <b>Images, Texte, URL, Pages web Safari</b>. Si aucune entrée : <b>Demander</b> → Photos.</li>
+          <li>Ajoute l'action <b>Répéter avec chaque élément</b> de <i>Entrée du raccourci</i>.</li>
+          <li>Dedans, ajoute <b>Obtenir le contenu de l'URL</b> :
+            <ul>
+              <li>URL : colle l'URL ci‑dessus</li>
+              <li>Méthode : <b>POST</b></li>
+              <li>En‑têtes : clé <code>Authorization</code>, valeur : colle l'en‑tête ci‑dessus</li>
+              <li>Corps de la requête : <b>Formulaire</b>
+                <ul><li>champ <b>Fichier</b>, clé <code>file</code>, valeur <i>Élément de répétition</i></li>
+                    <li>champ <b>Texte</b>, clé <code>source</code>, valeur <code>iphone</code></li></ul></li>
+            </ul></li>
+          <li>Après la boucle : <b>Afficher la notification</b> « Envoyé à Inspi ✓ ».</li>
+        </ol>
+        <p class="mono">Bonus capture d'écran : duplique le raccourci, remplace l'entrée par l'action <b>Prendre une capture d'écran</b>, puis Réglages → Accessibilité → Toucher → <b>Toucher le dos</b> → Toucher deux fois → ce raccourci. Deux tapes au dos de l'iPhone = capture envoyée au PC.</p>
+      </section>
+
+      <section>
+        <h2><span>3</span>Extension du navigateur (PC)</h2>
+        <p>Dans les options de l'extension Inspi, colle ce jeton :</p>
+        <div class="kv"><span class="mono">Jeton</span><span class="val" id="t">{{TOKEN}}</span><button onclick="cp('t')">Copier</button></div>
+      </section>
+
+      <section>
+        <h2 class="warn">Réinitialiser</h2>
+        <p class="mono">Si tu perds ton iPhone ou si quelqu'un a vu ce jeton : génère‑en un nouveau. Il faudra refaire les étapes 1 à 3.</p>
+        <button class="danger" onclick="reset()">Générer un nouveau jeton</button>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2000)}
+function cp(id){navigator.clipboard.writeText(document.getElementById(id).textContent);toast("Copié")}
+async function reset(){ if(!confirm("Nouveau jeton ? Les appareils déjà appairés devront être réappairés.")) return;
+  const r = await fetch("/api/token/reset",{method:"POST"}); if(r.ok) location.reload(); else toast("Échec"); }
+</script>
+</body>
+</html>

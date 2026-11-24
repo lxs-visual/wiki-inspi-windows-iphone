@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Inspi : options</title>
+<style>
+body{font:15px/1.5 "Segoe UI",system-ui,sans-serif;background:#0f0f10;color:#f1efe9;max-width:520px;margin:40px auto;padding:0 20px}
+h1{letter-spacing:-.03em}label{display:block;margin:16px 0 6px;color:#8d8b86;font-size:13px}
+input{width:100%;box-sizing:border-box;padding:.6em .8em;border-radius:10px;border:1px solid #2a2a2d;background:#18181a;color:inherit;font:13px ui-monospace,Consolas,monospace}
+button{margin-top:18px;padding:.6em 1.2em;border-radius:999px;border:0;background:#ff5c35;color:#111;font-weight:600;cursor:pointer}
+button.ghost{background:none;border:1px solid #2a2a2d;color:inherit}#msg{display:block;margin-top:12px}
+details{margin-top:24px;color:#8d8b86}a{color:#ff5c35}
+</style></head>
+<body>
+<h1>Envoyer à Inspi</h1>
+<p>L'extension se connecte toute seule à l'appli Inspi de ce PC. Si ce n'est pas fait, lance Inspi (icône du bureau) puis clique :</p>
+<button id="auto">Connecter à Inspi</button> <button class="ghost" id="test">Tester</button>
+<span id="msg"></span>
+<details><summary>Réglage manuel</summary>
+<label>Jeton (page d'appairage, section 3)</label><input id="token" placeholder="colle le jeton ici">
+<label>Port (laisse 18765 sauf si tu l'as changé)</label><input id="port" value="18765">
+<button id="save">Enregistrer</button></details>
+<script src="options.js"></script>
+</body></html>

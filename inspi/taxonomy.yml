@@ -1,0 +1,71 @@
+# Vocabulaire d'Inspi. Modifie librement, puis redémarre l'appli.
+#
+# use_for : liste FERMÉE. Le modèle ne peut choisir QUE ces valeurs (le reste est ignoré).
+#           Mets-y tes usages / projets réels.
+# themes  : thèmes existants proposés en priorité au modèle (il peut en créer d'autres).
+# vocabulaire : tags suggérés au modèle.
+# synonyms : variante -> tag canonique (appliqué aux tags, style, mouvement, technique, ambiance).
+
+use_for:
+  - motion-design
+  - vjing
+  - branding
+  - affiche
+  - ui-ux
+  - 3d
+  - clip-video
+  - typographie
+  - illustration
+  - projet-perso
+  - client
+
+themes:
+  - Néon & nuit
+  - Typo expérimentale
+  - Formes génératives
+  - Rétro-futur
+  - Matières & textures
+
+vocabulaire:
+  medium: [photo, illustration, 3d, typographie, affiche, motion-design, ui-ux, logo, packaging, peinture, collage, generatif, installation, scenographie, mode, architecture]
+  style: [minimaliste, brutaliste, retro, y2k, futuriste, organique, geometrique, glitch, psychedelique, suisse, editorial, cyberpunk, vaporwave, noir-et-blanc, pastel, neon, flat, isometrique, surrealiste, maximaliste]
+  technique: [degrade, halftone, risographie, lumiere-volumetrique, particules, displacement, feedback, kinetic-type, low-poly, pixel-art, long-exposure, double-exposition, texture, motif, rendu-3d, argentique, vectoriel, collage]
+  mood: [calme, energique, sombre, lumineux, melancolique, ludique, mysterieux, luxueux, chaotique, onirique, technique, poetique, audacieux]
+
+synonyms:
+  photographie: photo
+  typo: typographie
+  typography: typographie
+  poster: affiche
+  motion: motion-design
+  minimal: minimaliste
+  minimalist: minimaliste
+  minimalism: minimaliste
+  brutalist: brutaliste
+  brutalism: brutaliste
+  brutalisme: brutaliste
+  vintage: retro
+  futuristic: futuriste
+  geometric: geometrique
+  gradient: degrade
+  gradients: degrade
+  generative: generatif
+  black-and-white: noir-et-blanc
+  noir-blanc: noir-et-blanc
+  dark: sombre
+  playful: ludique
+  bold: audacieux
+  calm: calme
+  riso: risographie
+  risograph: risographie
+  swiss-design: suisse
+  swiss-style: suisse
+  style-suisse: suisse
+  3d-render: rendu-3d
+  3d-rendering: rendu-3d
+  cgi: rendu-3d
+  film-grain: grain
+  grainy: grain
+  analog-photography: argentique
+  film-photography: argentique
+  vector: vectoriel

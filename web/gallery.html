@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Inspi Local</title>
+<link rel="stylesheet" href="/app.css">
+<link rel="icon" href="/icon.svg">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f0f10">
+<style>
+header{position:sticky;top:0;z-index:10;background:rgba(15,15,16,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:12px 22px 8px}
+.top{display:flex;gap:12px;align-items:center}
+.search{flex:1;min-width:200px;max-width:560px;position:relative}
+.search input{padding-left:2.2em;border-radius:999px}
+.search:before{content:"⌕";position:absolute;left:.9em;top:50%;transform:translateY(-52%);color:var(--mute);font-size:18px}
+.colorpick{position:relative;display:flex;align-items:center;gap:6px}
+.colorpick .sw{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);cursor:pointer;background:conic-gradient(#f43,#fb3,#5d5,#3cf,#55f,#c3f,#f43);position:relative;overflow:hidden;padding:0}
+.colorpick .sw.on{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--acc)}
+.colorpick input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:0}
+select{width:auto;border-radius:999px;padding:.45em .9em;cursor:pointer}
+.tabs{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px}
+.tabs button{border:0;background:none;padding:.35em .9em}
+.tabs button.on{background:var(--ink);color:#111;font-weight:600}
+.status{display:flex;gap:.5em;align-items:center;margin-left:auto;position:relative}
+.menu{position:absolute;right:0;top:44px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px;display:none;flex-direction:column;min-width:230px;z-index:30;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.menu.show{display:flex}.menu button{border:0;border-radius:10px;text-align:left;background:none}.menu button:hover{background:#222}
+.filters{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none;align-items:center}
+.filters::-webkit-scrollbar{display:none}
+.filters select{font-size:13px;padding:.3em .7em;color:var(--mute)}
+.filters select.on{border-color:var(--acc);color:var(--ink);background:rgba(255,92,53,.12)}
+.sep{width:1px;height:20px;background:var(--line);margin:0 4px;flex:none}
+main{padding:18px 22px 120px}
+.grid{columns:var(--cw,240px);column-gap:16px}
+.sizer{display:flex;align-items:center;gap:6px;color:var(--mute)}
+.sizer input{width:110px;padding:0;accent-color:var(--acc)}
+.aichip{display:inline-flex;align-items:center;gap:6px;font-size:13px}
+.aichip b{font-weight:600}
+.boards{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,240px),1fr));gap:16px}
+.bcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.bcard .cov{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;aspect-ratio:1;gap:2px;background:#0a0a0a;cursor:pointer}
+.bcard .cov img{width:100%;height:100%;object-fit:cover}
+.bcard .cov .one{grid-column:1/3;grid-row:1/3}
+.bcard .bm{padding:12px}
+.bcard .bm b{display:block;font-size:15px}
+.bcard .ba{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.bcard .ba button{font-size:13px;padding:.35em .8em}
+.ai label.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer;margin-bottom:8px}
+.ai label.opt.on{border-color:var(--acc);background:rgba(255,92,53,.08)}
+.ai label.opt input{width:auto;margin-top:4px}
+.ai .sub{margin:8px 0 0 26px;display:grid;gap:8px}
+.ai .fiche{background:#0b0b0c;border:1px solid var(--line);border-radius:12px;padding:12px;max-height:340px;overflow:auto;font-size:13px}
+.ai .fiche dt{color:var(--mute);font-family:var(--mono);font-size:11px;margin-top:6px}
+.ai .fiche dd{margin:0}
+.card{break-inside:avoid;margin:0 0 16px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;position:relative;cursor:zoom-in;transition:transform .15s,border-color .15s}
+.card:hover{border-color:#444;transform:translateY(-2px)}
+.card img{display:block;width:100%;height:auto;background:#222}
+.card .meta{padding:10px 12px 12px}
+.card .t{font-weight:600;font-size:14px;line-height:1.3}
+.card .a{font-size:12px;color:var(--mute);margin-top:2px}
+.card .tags{margin-top:6px;color:var(--mute);font-size:12px;font-family:var(--mono)}
+.card .pal{display:flex;margin-top:8px;height:6px;border-radius:3px;overflow:hidden}
+.card .pal span{flex:1}
+.card blockquote{margin:0;padding:16px 14px 4px;font-size:15px;line-height:1.5;border-left:3px solid var(--acc);overflow-wrap:anywhere}
+.card .badge{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.72);border-radius:999px;padding:.15em .6em;font-size:11px;font-family:var(--mono)}
+.card .pick{position:absolute;top:8px;right:8px;width:30px;height:30px;padding:0;border-radius:50%;background:rgba(0,0,0,.6);border-color:transparent;font-size:18px;line-height:1;opacity:0}
+.card:hover .pick,.card.sel .pick,body.picking .pick{opacity:1}
+.card.sel{outline:3px solid var(--acc);outline-offset:-3px}
+.card.sel .pick{background:var(--acc);color:#111}
+.card .ph{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:var(--mute);font-family:var(--mono);font-size:12px;background:repeating-linear-gradient(45deg,#1b1b1d,#1b1b1d 10px,#202023 10px,#202023 20px)}
+.banner{display:flex;align-items:center;gap:12px;margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.banner b{flex:1}
+.empty{text-align:center;color:var(--mute);padding:80px 20px}
+.empty b{display:block;color:var(--ink);font-size:20px;margin-bottom:6px}
+.fam{margin-bottom:28px}
+.fam h3{margin:0 0 10px;font-size:16px;display:flex;align-items:baseline;gap:10px}
+.fam h3 small{color:var(--mute);font-family:var(--mono);font-weight:400}
+.strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.strip img{height:calc(var(--cw,240px) * .62);border-radius:10px;cursor:zoom-in;flex:none}
+.dup{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px;background:var(--panel)}
+.dup .row{display:flex;gap:10px;overflow-x:auto}
+.dup figure{margin:0;flex:none;width:170px}
+.dup figure img{width:170px;height:170px;object-fit:cover;border-radius:10px;cursor:zoom-in}
+.dup figcaption{font-size:11px;font-family:var(--mono);color:var(--mute);margin-top:4px}
+.dup figure.keep img{outline:3px solid var(--ok);outline-offset:-3px}
+.selbar{position:fixed;left:50%;bottom:20px;transform:translate(-50%,160%);transition:.25s;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 8px 8px 18px;display:flex;gap:8px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.5);z-index:20}
+.selbar.show{transform:translate(-50%,0)}
+.selbar input{width:200px;border-radius:999px}
+dialog{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:18px;padding:0;max-width:min(1180px,96vw);width:100%}
+dialog::backdrop{background:rgba(0,0,0,.78)}
+.det{display:grid;grid-template-columns:1.35fr 1fr;min-height:60vh}
+.det .vis{background:#0a0a0a;display:flex;align-items:center;justify-content:center;padding:16px}
+.det .vis img{max-width:100%;max-height:82vh;border-radius:8px}
+.det .vis blockquote{font-size:20px;line-height:1.5;padding:30px;margin:0;border-left:3px solid var(--acc);overflow-wrap:anywhere}
+.det .info{padding:22px;display:flex;flex-direction:column;gap:12px;overflow:auto;max-height:86vh}
+.det h2{margin:0;font-size:22px;letter-spacing:-.02em;outline:none;border-radius:6px}
+.det h2:focus{box-shadow:0 0 0 2px var(--acc)}
+.det .pal{display:flex;gap:8px;flex-wrap:wrap}
+.det .pal div{cursor:copy;text-align:center;width:64px}
+.det .pal span{display:block;height:40px;border-radius:8px;border:1px solid rgba(255,255,255,.08)}
+.det .pal small{display:block;font-size:10px;color:var(--mute);line-height:1.2;margin-top:3px}
+.det dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:14px}
+.det dt{color:var(--mute);font-family:var(--mono);font-size:12px;padding-top:2px}
+.det dd{margin:0}
+.det .uses{display:flex;flex-wrap:wrap;gap:6px}
+.det .uses label{display:inline-flex;gap:4px;align-items:center;font-size:13px;border:1px solid var(--line);border-radius:999px;padding:.15em .6em;cursor:pointer}
+.det .uses input{width:auto}
+.det .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:10px}
+.toast{display:flex;gap:12px;align-items:center;pointer-events:auto}
+.toast button{background:#111;color:#fff;border:0;padding:.3em .8em}
+.toast:not(.show){pointer-events:none}
+.drop{position:fixed;inset:0;background:rgba(255,92,53,.15);border:3px dashed var(--acc);display:none;align-items:center;justify-content:center;font-size:28px;font-weight:700;z-index:50}
+body.dragging .drop{display:flex}
+.ed{display:grid;grid-template-columns:1fr 300px;min-height:70vh}
+.ed .stage{background:#0a0a0a;display:flex;align-items:center;justify-content:center;padding:20px;user-select:none;touch-action:none}
+.ed .wrap{position:relative;display:inline-block;line-height:0;overflow:hidden}
+.ed .wrap img{max-width:100%;max-height:76vh;min-width:min(420px,100%);display:block}
+.ed .box{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.6);cursor:move}
+.ed .box:before,.ed .box:after{content:"";position:absolute;inset:33.33% 0;border-top:1px solid rgba(255,255,255,.35);border-bottom:1px solid rgba(255,255,255,.35);pointer-events:none}
+.ed .box:after{inset:0 33.33%;border:0;border-left:1px solid rgba(255,255,255,.35);border-right:1px solid rgba(255,255,255,.35)}
+.ed .h{position:absolute;width:14px;height:14px;background:#fff;border:2px solid var(--acc);border-radius:3px;margin:-7px}
+.ed .side{padding:20px;display:flex;flex-direction:column;gap:12px;border-left:1px solid var(--line)}
+.ed .ratios{display:flex;flex-wrap:wrap;gap:6px}
+.ed .row2{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center}
+.ed .row2 input{text-align:center}
+.ed label.ck{display:flex;gap:8px;align-items:center;font-size:13px}.ed label.ck input{width:auto}
+@media (max-width:860px){.ed{grid-template-columns:1fr}.ed .side{border-left:0}}
+.doc li{margin:.4em 0}.doc .ok{color:var(--ok)}.doc .ko{color:var(--err)}
+@media (max-width:860px){
+  header{padding:10px 12px 6px}.top{flex-wrap:wrap;gap:8px}.search{order:5;flex-basis:100%;max-width:none}
+  main{padding:12px}.grid{columns:var(--cwm,150px);column-gap:10px}.sizer{display:none}.card{margin-bottom:10px}
+  .det{grid-template-columns:1fr}.status .mono,.hide-m{display:none}
+  .selbar{left:10px;right:10px;transform:translateY(160%);border-radius:18px;flex-wrap:wrap}.selbar.show{transform:none}.selbar input{width:auto;flex:1}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="brand"><i></i>Inspi</div>
+    <div class="search"><input id="q" type="search" placeholder="Rechercher : glitch néon, typo suisse, affiche rouge, Bauhaus…" autocomplete="off"></div>
+    <div class="colorpick" title="Chercher par couleur"><button class="sw" id="sw"><input type="color" id="color"></button><button class="ghost" id="nocolor" hidden>✕</button></div>
+    <select id="sort" title="Trier">
+      <option value="new">Plus récentes</option><option value="old">Plus anciennes</option>
+      <option value="color">Par couleur</option><option value="title">Par titre</option><option value="family">Par famille</option><option value="board">Par moodboard</option>
+    </select>
+    <label class="sizer" title="Taille des images"><span style="font-size:11px">▪</span><input type="range" id="size" min="140" max="560" step="10" value="240"><span style="font-size:17px">■</span></label>
+    <div class="tabs"><button data-v="wall" class="on">Mur</button><button data-v="families">Familles</button><button data-v="boards">Moodboards</button><button data-v="dups">Doublons</button></div>
+    <div class="status"><button class="ghost aichip" id="aichip" title="Changer d'IA"><span id="dot" class="dot"></span><b id="ailabel">IA</b></button><span id="stat" class="mono"></span>
+      <a href="/m" class="hide-pc"><button class="ghost">＋ Envoyer</button></a>
+      <button class="ghost" id="menubtn">⋯</button>
+      <div class="menu" id="menu">
+        <button id="m-ai">🤖 Réglages IA</button>
+        <button id="m-pair">📱 Appairer l'iPhone</button>
+        <button id="m-ext">🧩 Installer l'extension (Chrome / Edge)</button>
+        <button id="m-reclass">↻ Reclasser les anciennes notes</button>
+        <button id="m-reclass-all">↻ Tout reclasser</button>
+        <button id="m-doctor">🩺 Diagnostic</button>
+        <button id="m-obs">🗂 Ouvrir l'accueil dans Obsidian</button>
+      </div>
+    </div>
+  </div>
+  <div class="filters" id="filters"></div>
+</header>
+<main><div id="view"></div></main>
+
+<div class="selbar" id="selbar">
+  <span id="selcount" class="mono"></span>
+  <input id="boardname" list="boardlist" placeholder="Nom du moodboard">
+  <datalist id="boardlist"></datalist>
+  <button class="primary" id="mkboard">Ajouter au moodboard</button>
+  <button id="selsim">Similaires</button>
+  <button class="danger ghost" id="seldel">Supprimer</button>
+  <button class="ghost" id="clearsel">✕</button>
+</div>
+
+<dialog id="dlg"></dialog>
+<div class="drop">Dépose tes images ici</div>
+<div class="toast" id="toast"><span id="toastmsg"></span><button id="undo" hidden>Annuler</button></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => (s ?? "").toString().replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const FACETS = [["type","Type"],["technique","Technique"],["sujet","Sujet"],["couleur","Couleur"],["température","Température"],["usage","Usage"]];
+const S = {q:"", color:"", sort:"new", type:"", status:"", f:{}, view:"wall", sel:new Set(), sim:null, fam:null, items:[], st:{}};
+let vaultName = "", undoBatch = null;
+
+function toast(m, batch=null){ const t=$("#toast"); $("#toastmsg").textContent=m; undoBatch=batch; $("#undo").hidden=!batch; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"), batch?7000:2800); }
+async function api(path, opt={}){
+  const r = await fetch(path, {credentials:"same-origin", ...opt, headers:{"Content-Type":"application/json", ...(opt.headers||{})}});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+const post = (p, body) => api(p, {method:"POST", body:JSON.stringify(body||{})});
+
+async function loadStatus(){
+  try{
+    const s = await api("/api/status"); S.st = s; vaultName = s.vault_name;
+    const c = s.counts, pend = (c.pending||0)+(c.fetch||0), err = c.error||0, done = c.done||0;
+    $("#dot").className = "dot " + (!s.ollama ? "err" : pend ? "warn" : "ok");
+    $("#stat").textContent = !s.ollama ? s.ollama_msg : `${done} inspi` + (pend?` · ${pend} en cours`:"") + (err?` · ${err} erreur(s)`:"");
+    $("#stat").title = s.worker;
+    $("#ailabel").textContent = s.ai_label; $("#aichip").title = (s.ai_backend==="claude" ? "IA en ligne (Claude)" : "IA locale (rien ne quitte le PC)") + " · cliquer pour changer";
+    document.querySelectorAll(".hide-pc").forEach(e=>e.style.display = s.is_pc ? "none" : "");
+    $("#m-pair").hidden = $("#m-obs").hidden = $("#m-ai").hidden = $("#m-ext").hidden = !s.is_pc;
+    return pend;
+  }catch(e){ $("#dot").className="dot err"; $("#stat").textContent="Serveur injoignable"; return 0 }
+}
+
+function params(extra={}){
+  const p = new URLSearchParams({q:S.q, color:S.color, sort:S.sort, type:S.type, status:S.status, ...extra});
+  for(const [k,v] of Object.entries(S.f)) if(v) p.set("f_"+k, v);
+  return p;
+}
+
+async function loadFilters(){
+  const fc = await api("/api/facets?"+params());
+  const f = $("#filters"); f.innerHTML = "";
+  const chip = (label, on, fn) => { const b=document.createElement("button"); b.className="chip"+(on?" on":""); b.textContent=label; b.onclick=fn; f.append(b); };
+  chip("Images", S.type==="image", ()=>{S.type=S.type==="image"?"":"image";refresh()});
+  chip("Textes", S.type==="text", ()=>{S.type=S.type==="text"?"":"text";refresh()});
+  chip("En attente", S.status==="pending", ()=>{S.status=S.status==="pending"?"":"pending";refresh()});
+  if(S.st.counts?.error) chip("Erreurs", S.status==="error", ()=>{S.status=S.status==="error"?"":"error";refresh()});
+  if(S.st.incomplete) chip(`Fiches incomplètes (${S.st.incomplete})`, S.status==="incomplete", ()=>{S.status=S.status==="incomplete"?"":"incomplete";refresh()});
+  const sp=document.createElement("span"); sp.className="sep"; f.append(sp);
+  for(const [k,label] of FACETS){
+    const opts = fc[k] || [];
+    if(!opts.length && !S.f[k]) continue;
+    const sel = document.createElement("select"); sel.className = S.f[k] ? "on" : "";
+    sel.innerHTML = `<option value="">${label}</option>` + opts.map(([v,n])=>`<option value="${esc(v)}" ${S.f[k]===v?"selected":""}>${esc(v)} (${n})</option>`).join("")
+      + (S.f[k] && !opts.find(o=>o[0]===S.f[k]) ? `<option selected value="${esc(S.f[k])}">${esc(S.f[k])}</option>` : "");
+    sel.onchange = () => { S.f[k] = sel.value; refresh(); };
+    f.append(sel);
+  }
+  if((Object.values(S.f).some(Boolean) || S.q || S.color) && S.view==="wall"){
+    chip("▦ Moodboard avec ces résultats", false, boardFromResults);
+  }
+  if(Object.values(S.f).some(Boolean) || S.type || S.status || S.q || S.color){
+    chip("✕ Tout effacer", false, ()=>{ S.f={}; S.type=S.status=S.q=S.color=""; $("#q").value=""; setColor(""); refresh(); });
+  }
+}
+
+function setColor(c){ S.color=c; $("#sw").classList.toggle("on", !!c); $("#sw").style.background = c || ""; $("#nocolor").hidden = !c; }
+
+function card(it){
+  const d = document.createElement("div");
+  d.className = "card" + (S.sel.has(it.id)?" sel":"");
+  const title = it.title || it.page_title || (it.status==="fetch" ? "Récupération de l'image…" : it.status==="pending" ? "Classement en cours…" : it.status==="error" ? "Non classée" : "");
+  let h = "";
+  if(it.type==="image" && it.image) h += `<img loading="lazy" src="/media/${it.id}/thumb" width="${it.width||1}" height="${it.height||1}" alt="">`;
+  else if(it.type==="image") h += `<div class="ph">${esc((it.source_url||it.image_url||"").replace(/^https?:\/\//,"").slice(0,40))}</div>`;
+  else h += `<blockquote>${esc((it.text||"").slice(0,280))}${(it.text||"").length>280?"…":""}</blockquote>`;
+  h += `<div class="meta"><div class="t">${esc(title)}</div>`;
+  if(it.author) h += `<div class="a">${esc(it.author)}</div>`;
+  if(it.tags.length) h += `<div class="tags">${it.tags.slice(0,5).map(esc).join(" · ")}</div>`;
+  const pal = (it.meta.palette||[]).length ? it.meta.palette : it.palette.map(x=>({hex:x,share:1}));
+  if(pal.length) h += `<div class="pal">${pal.map(p=>`<span style="background:${esc(p.hex)};flex:${Math.max(p.share||.15,.08)}"></span>`).join("")}</div>`;
+  h += `</div>`;
+  const badge = {fetch:"⏬ récupération", pending:"⏳ en cours", error:"⚠ erreur"}[it.status];
+  if(badge) h += `<span class="badge">${badge}</span>`;
+  else if(it.meta.fiche_incomplete) h += `<span class="badge" title="Manque : ${esc(it.meta.fiche_incomplete.join(", "))}">fiche incomplète</span>`;
+  else if(it.duplicate_of) h += `<span class="badge">doublon ?</span>`;
+  else if(it.color_distance!=null) h += `<span class="badge">Δ ${it.color_distance}</span>`;
+  if(it.image) h += `<button class="pick" title="Sélectionner">${S.sel.has(it.id)?"✓":"+"}</button>`;
+  d.innerHTML = h;
+  d.onclick = e => { if(e.target.classList.contains("pick") || (document.body.classList.contains("picking") && it.image)) { e.stopPropagation(); toggleSel(it.id, d); } else openItem(it); };
+  return d;
+}
+function toggleSel(id, el){
+  S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id);
+  if(el){ el.classList.toggle("sel", S.sel.has(id)); const p=el.querySelector(".pick"); if(p) p.textContent = S.sel.has(id) ? "✓" : "+"; }
+  updSel();
+}
+function updSel(){
+  const n = S.sel.size;
+  $("#selbar").classList.toggle("show", n>0); document.body.classList.toggle("picking", n>0);
+  $("#selcount").textContent = n + " image" + (n>1?"s":"");
+}
+
+function grid(items, banner=""){
+  const v = $("#view"); v.innerHTML = banner;
+  const g = document.createElement("div"); g.className="grid"; items.forEach(it=>g.append(card(it))); v.append(g);
+  if(!items.length){
+    const has = S.q||S.color||S.type||S.status||Object.values(S.f).some(Boolean);
+    v.insertAdjacentHTML("beforeend", `<div class="empty">${has ? "<b>Rien trouvé</b>Essaie d'autres mots, une autre couleur ou retire un filtre."
+      : "<b>Ta bibliothèque est vide</b>Glisse des images ici, colle un lien (Ctrl+V), envoie-les depuis ton iPhone, ou fais un clic droit « Envoyer à Inspi » dans le navigateur."}</div>`);
+  }
+  const b = v.querySelector(".banner button"); if(b) b.onclick = () => { S.sim=null; S.fam=null; refresh(); };
+}
+
+async function refresh(){
+  if(S.view==="families") return showFamilies();
+  if(S.view==="dups") return showDups();
+  if(S.view==="boards") return showBoards();
+  loadFilters();
+  if(S.sim){
+    const items = await api("/api/similar?ids="+encodeURIComponent(S.sim.join(",")));
+    S.items = items;
+    return grid(items, `<div class="banner"><b>Images similaires à ${S.sim.length} image${S.sim.length>1?"s":""}</b><button>✕ Fermer</button></div>`);
+  }
+  let items = await api("/api/items?"+params());
+  if(S.fam){ const ids = new Set(S.fam.ids); items = items.filter(i=>ids.has(i.id)); }
+  S.items = items;
+  grid(items, S.fam ? `<div class="banner"><b>Images de la ${esc(S.fam.label)}</b><button>✕ Fermer</button></div>` : "");
+}
+
+async function showFamilies(){
+  $("#filters").innerHTML = "";
+  const [fams, items] = await Promise.all([api("/api/families"), api("/api/items?type=image&limit=5000")]);
+  const by = new Map(items.map(i=>[i.id,i]));
+  const v = $("#view"); v.innerHTML = fams.length ? `<p class="mono">Les images proches (style, technique, ambiance, couleur) se regroupent en familles. Elles se recalculent à chaque nouvelle inspi classée.</p>` :
+    `<div class="empty"><b>Pas encore de familles</b>Il faut au moins quelques images classées qui se ressemblent.</div>`;
+  for(const f of fams){
+    const s = document.createElement("section"); s.className="fam";
+    s.innerHTML = `<h3>${esc(f.label)} <small>${f.size} images</small> <button class="ghost">Tout voir →</button></h3><div class="strip"></div>`;
+    const strip = s.querySelector(".strip");
+    f.ids.slice(0,24).forEach(id => { const it = by.get(id); if(!it) return; const im = new Image(); im.loading="lazy"; im.src=`/media/${id}/thumb`; im.onclick=()=>openItem(it); strip.append(im); });
+    s.querySelector("button").onclick = () => { S.fam={...f, label:"famille « "+f.label+" »"}; setView("wall"); };
+    v.append(s);
+  }
+}
+
+async function showDups(){
+  $("#filters").innerHTML = "";
+  const groups = await api("/api/duplicates");
+  const v = $("#view");
+  if(!groups.length){ v.innerHTML = `<div class="empty"><b>Aucun doublon</b>Les images identiques ou quasi identiques apparaîtront ici.</div>`; return; }
+  v.innerHTML = `<div class="banner"><b>${groups.length} groupe(s) de doublons. La copie entourée en vert est celle à garder (classée, plus grande, plus ancienne).</b><button class="primary" id="dupall">Supprimer tous les autres</button></div>`;
+  for(const g of groups){
+    const d = document.createElement("div"); d.className="dup";
+    d.innerHTML = `<div class="mono" style="margin-bottom:8px">${g.exact?"Fichiers identiques":"Images quasi identiques"}</div><div class="row">${g.items.map(it=>`
+      <figure class="${it.id===g.keep?"keep":""}" data-id="${it.id}"><img src="/media/${it.id}/thumb"><figcaption>${it.id===g.keep?"à garder · ":""}${it.width}×${it.height}<br>${esc(it.created.slice(0,10))} · ${esc(it.source)}</figcaption></figure>`).join("")}</div>
+      <button style="margin-top:10px" class="ghost">Supprimer les autres</button>`;
+    d.querySelectorAll("figure").forEach(fg => fg.querySelector("img").onclick = () => openItem(g.items.find(i=>i.id===fg.dataset.id)));
+    d.querySelector("button").onclick = () => del(g.ids.filter(i=>i!==g.keep));
+    v.append(d);
+  }
+  $("#dupall").onclick = () => del(groups.flatMap(g=>g.ids.filter(i=>i!==g.keep)));
+}
+
+async function showBoards(){
+  $("#filters").innerHTML = "";
+  const bs = await api("/api/boards");
+  const v = $("#view");
+  v.innerHTML = `<div class="banner"><b>${bs.length ? bs.length + " moodboard(s) dans Obsidian." : "Aucun moodboard pour l'instant."} Pour en créer un : sélectionne des images avec ＋ sur le Mur, ou fais une recherche puis « Moodboard avec ces résultats ».</b><button class="primary" id="nb">＋ Nouveau depuis une recherche</button></div>`;
+  $("#nb").onclick = () => { setView("wall"); $("#q").focus(); toast("Cherche, filtre, puis clique « Moodboard avec ces résultats »"); };
+  const g = document.createElement("div"); g.className = "boards"; v.append(g);
+  for(const b of bs){
+    const c = document.createElement("div"); c.className = "bcard";
+    const cov = b.ids.slice(0,4);
+    c.innerHTML = `<div class="cov">${cov.length===1?`<img class="one" src="/media/${cov[0]}/thumb">`:cov.map(id=>`<img loading="lazy" src="/media/${id}/thumb">`).join("")}</div>
+      <div class="bm"><b>${esc(b.name)}</b><span class="mono">${b.images} images · ${esc(b.updated)}</span>
+      <div class="ba">${S.st.is_pc?`<a href="${b.obsidian}"><button class="primary">Ouvrir dans Obsidian</button></a>`:""}<button data-a="see">Voir les images</button><button data-a="sim">Similaires</button></div></div>`;
+    c.querySelector(".cov").onclick = c.querySelector('[data-a="see"]').onclick = () => { S.fam = {label:"moodboard « "+b.name+" »", ids:b.ids}; setView("wall"); };
+    c.querySelector('[data-a="sim"]').onclick = () => { S.sim = b.ids; setView("wall"); };
+    g.append(c);
+  }
+}
+
+async function boardFromResults(){
+  const imgs = S.items.filter(i => i.image);
+  if(!imgs.length) return toast("Aucune image dans ces résultats");
+  const def = (S.q || Object.values(S.f).filter(Boolean)[0] || S.color || "Moodboard").toString();
+  const name = prompt(`Nom du moodboard (${Math.min(imgs.length, 40)} images, les plus pertinentes d'abord) :`, def.charAt(0).toUpperCase() + def.slice(1));
+  if(!name) return;
+  try{
+    const r = await post("/api/board", {name, ids: imgs.slice(0,40).map(i=>i.id)});
+    toast(`${r.added} image(s) ajoutée(s) à « ${name} »`); loadBoards();
+    if(S.st.is_pc && confirm("Ouvrir le moodboard dans Obsidian ?")) location.href = r.obsidian;
+  }catch(e){ toast(e.message) }
+}
+
+async function openAI(){
+  const a = await api("/api/ai");
+  const dlg = $("#dlg");
+  const om = a.ollama_models.length ? a.ollama_models : [a.ollama_model];
+  dlg.innerHTML = `<div class="ai" style="padding:24px;max-width:640px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Quelle IA fait les fiches ?</h2><button class="ghost" id="ai-x">✕</button></div>
+    <p class="mono">La fiche de chaque image : titre, description, medium, style, mouvement, ambiance, technique, palette, couleur principale, température, sujet, composition, lumière, typo, texture, époque, références, usages, thèmes.</p>
+    <label class="opt ${a.backend==="ollama"?"on":""}"><input type="radio" name="be" value="ollama" ${a.backend==="ollama"?"checked":""}>
+      <div><b>IA locale (Ollama)</b> · gratuite, rien ne quitte ton PC<br><span class="mono">${a.ollama_ok[0] ? "✓ " + esc(a.ollama_ok[1]) : "✗ " + esc(a.ollama_ok[1])}</span>
+      <div class="sub"><select id="ai-om">${om.map(m=>`<option ${m===a.ollama_model?"selected":""}>${esc(m)}</option>`).join("")}</select>
+      <span class="mono">Conseillé : qwen2.5vl:7b (RTX 3070) · plus léger : gemma3:4b. Installer un modèle : <code>ollama pull nom</code></span></div></div></label>
+    <label class="opt ${a.backend==="claude"?"on":""}"><input type="radio" name="be" value="claude" ${a.backend==="claude"?"checked":""}>
+      <div><b>Claude (API Anthropic)</b> · fiches plus fines, payant à l'usage, l'image (réduite) est envoyée à Anthropic<br>
+      <div class="sub"><select id="ai-cm">${a.claude_models.map(([id,l])=>`<option value="${id}" ${id===a.claude_model?"selected":""}>${esc(l)}</option>`).join("")}</select>
+      <input id="ai-key" type="password" placeholder="${a.has_key ? "Clé enregistrée : " + esc(a.key_hint) + " (laisse vide pour la garder)" : "Colle ta clé API (sk-ant-…), console.anthropic.com"}" autocomplete="off">
+      ${a.has_key?`<button class="ghost" id="ai-clear" style="justify-self:start">Supprimer la clé</button>`:""}
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="ai-fb" style="width:auto" ${a.fallback?"checked":""}> Si Claude ne répond pas, utiliser l'IA locale</label>
+      <span class="mono">La clé est gardée dans le Gestionnaire d'identifiants Windows, jamais dans un fichier.</span></div></div></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="primary" id="ai-save">Enregistrer</button><button id="ai-test">Tester sur ma dernière image</button></div>
+    <div id="ai-out" style="margin-top:14px"></div></div>`;
+  const sel = () => dlg.querySelector('input[name=be]:checked').value;
+  dlg.querySelectorAll('input[name=be]').forEach(r => r.onchange = () => dlg.querySelectorAll("label.opt").forEach(l => l.classList.toggle("on", l.contains(dlg.querySelector('input[name=be]:checked')))));
+  $("#ai-x").onclick = () => dlg.close();
+  const save = async () => post("/api/ai", {backend: sel(), ollama_model: $("#ai-om").value, claude_model: $("#ai-cm").value,
+    fallback: $("#ai-fb").checked, api_key: $("#ai-key").value.trim()});
+  $("#ai-save").onclick = async () => { try{ await save(); toast("IA enregistrée"); dlg.close(); loadStatus(); }catch(e){ toast(e.message) } };
+  if($("#ai-clear")) $("#ai-clear").onclick = async () => { await post("/api/ai", {clear_key:true}); toast("Clé supprimée"); openAI(); };
+  $("#ai-test").onclick = async () => {
+    const out = $("#ai-out"); out.innerHTML = `<span class="mono">Analyse en cours (10 à 60 s)…</span>`;
+    try{
+      await save();
+      const r = await post("/api/ai/test", {backend: sel()});
+      const f = r.fiche, m = f.meta;
+      const rows = [["Titre", f.title], ["Description", f.description], ["Medium", f.medium], ["Style", (m.style||[]).join(", ")], ["Mouvement", (m.movement||[]).join(", ")],
+        ["Ambiance", (m.mood||[]).join(", ")], ["Technique", (m.technique||[]).join(", ")], ["Palette", (m.palette||[]).map(p=>`${p.hex} ${p.name} ${Math.round(p.share*100)}%`).join(" · ")],
+        ["Couleur principale", m.main_color], ["Température", m.color_temperature], ["Sujet", m.subject], ["Composition", m.composition], ["Lumière", m.lighting],
+        ["Typo", m.typography], ["Texture", m.texture], ["Époque", m.era], ["Proche de", (m.references||[]).join(", ")], ["Usages", (m.use_for||[]).join(", ")],
+        ["Thèmes", (m.themes||[]).join(", ")], ["Tags", (f.tags||[]).join(", ")]];
+      out.innerHTML = `<div style="display:flex;gap:12px;align-items:flex-start"><img src="/media/${r.id}/thumb" style="width:120px;border-radius:8px">
+        <div><b>${r.missing.length ? "⚠ Fiche incomplète" : "✓ Fiche complète"}</b> · ${esc(r.used)} · ${r.seconds} s${r.missing.length?`<br><span style="color:var(--warn)">Manque : ${esc(r.missing.join(", "))}</span>`:""}
+        <div class="pal" style="display:flex;gap:4px;margin-top:8px">${(m.palette||[]).map(p=>`<span title="${esc(p.hex)}" style="width:28px;height:28px;border-radius:6px;background:${esc(p.hex)}"></span>`).join("")}</div></div></div>
+        <dl class="fiche">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v?esc(v):'<span style="color:var(--warn)">—</span>'}</dd>`).join("")}</dl>
+        <p class="mono">Test seulement : rien n'est enregistré. Si ça te va, garde ce réglage ; pour mettre à jour tes anciennes fiches : ⋯ → Tout reclasser.</p>`;
+    }catch(e){ out.innerHTML = `<span style="color:var(--err)">✗ ${esc(e.message)}</span>` }
+  };
+  if(!dlg.open) dlg.showModal();
+}
+
+// ---------------- rogner / redimensionner ----------------
+function openEditor(it){
+  const dlg = $("#dlg"), W = it.width, H = it.height;
+  const RATIOS = [["Libre",0],["Original",W/H],["1:1",1],["4:5",4/5],["3:4",3/4],["16:9",16/9],["9:16",9/16],["3:2",3/2],["A4",1/1.4142]];
+  const st = {r:0, c:{x:0,y:0,w:W,h:H}, lock:true};
+  dlg.innerHTML = `<div class="ed"><div class="stage"><div class="wrap"><img id="ed-img" src="/media/${it.id}/full?v=${Date.now()}" draggable="false"><div class="box" id="ed-box"></div></div></div>
+   <div class="side">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:18px">Rogner / redimensionner</b><button class="ghost" id="ed-x">✕</button></div>
+    <div class="mono">Original : ${W} × ${H} px</div>
+    <label class="mono">Format du rognage</label>
+    <div class="ratios">${RATIOS.map(([l,r],i)=>`<button class="chip ${i===0?"on":""}" data-i="${i}">${l}</button>`).join("")}</div>
+    <div class="mono" id="ed-cropinfo"></div>
+    <label class="mono">Taille finale (px)</label>
+    <div class="row2"><input id="ed-w" type="number" min="8"><button class="ghost" id="ed-lock" title="Garder les proportions">🔗</button><input id="ed-h" type="number" min="8"></div>
+    <div class="ratios">${[100,75,50,25].map(p=>`<button class="chip" data-p="${p}">${p} %</button>`).join("")}</div>
+    <label class="ck"><input type="checkbox" id="ed-re"> Refaire la fiche avec l'IA après (palette, composition…)</label>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:auto">
+      <button class="primary" id="ed-save">Remplacer l'image</button>
+      <button id="ed-copy">Enregistrer une copie</button>
+      <button class="ghost" id="ed-reset">Réinitialiser</button>
+      ${it.meta.original?`<button class="ghost" id="ed-orig">↺ Revenir à l'original (${it.meta.original.width} × ${it.meta.original.height})</button>`:""}
+      <span class="mono">« Remplacer » garde l'original dans .inspi/originaux : tu peux toujours revenir en arrière. Les moodboards qui utilisent l'image se mettent à jour.</span>
+    </div></div></div>`;
+  const img = $("#ed-img"), box = $("#ed-box");
+  const scale = () => img.clientWidth / W;
+  const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+  function draw(){
+    const k = scale(), c = st.c;
+    Object.assign(box.style, {left:c.x*k+"px", top:c.y*k+"px", width:c.w*k+"px", height:c.h*k+"px"});
+    box.innerHTML = ["nw","n","ne","e","se","s","sw","w"].map(d=>{
+      const x = d.includes("w")?0:d.includes("e")?100:50, y = d.includes("n")?0:d.includes("s")?100:50;
+      return `<span class="h" data-d="${d}" style="left:${x}%;top:${y}%;cursor:${d}-resize"></span>`; }).join("");
+    $("#ed-cropinfo").textContent = `Zone : ${Math.round(c.w)} × ${Math.round(c.h)} px`;
+    if(!st.typing){ $("#ed-w").value = Math.round(c.w); $("#ed-h").value = Math.round(c.h); }
+  }
+  function applyRatio(r){
+    st.r = r; if(!r) return draw();
+    let w = W, h = w / r; if(h > H){ h = H; w = h * r; }
+    st.c = {x:(W-w)/2, y:(H-h)/2, w, h}; draw();
+  }
+  dlg.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { dlg.querySelectorAll("[data-i]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); st.typing=false; applyRatio(RATIOS[b.dataset.i][1]); });
+  // glisser la zone ou ses poignées
+  box.addEventListener("pointerdown", e => {
+    e.preventDefault(); box.setPointerCapture(e.pointerId);
+    const d = e.target.dataset.d || "move", k = scale(), sx = e.clientX, sy = e.clientY, o = {...st.c};
+    st.typing = false;
+    const move = ev => {
+      const dx = (ev.clientX - sx)/k, dy = (ev.clientY - sy)/k; let {x,y,w,h} = o;
+      if(d==="move"){ x = clamp(o.x+dx, 0, W-o.w); y = clamp(o.y+dy, 0, H-o.h); }
+      else{
+        if(d.includes("e")) w = clamp(o.w+dx, 16, W-o.x);
+        if(d.includes("s")) h = clamp(o.h+dy, 16, H-o.y);
+        if(d.includes("w")){ x = clamp(o.x+dx, 0, o.x+o.w-16); w = o.w + (o.x - x); }
+        if(d.includes("n")){ y = clamp(o.y+dy, 0, o.y+o.h-16); h = o.h + (o.y - y); }
+        if(st.r){
+          if(d==="n"||d==="s"){ w = h*st.r; } else { h = w/st.r; }
+          if(d.includes("n")) y = o.y + o.h - h;
+          if(d.includes("w")) x = o.x + o.w - w;
+          if(x<0||y<0||x+w>W||y+h>H) return;
+        }
+      }
+      st.c = {x,y,w,h}; draw();
+    };
+    const up = () => { box.removeEventListener("pointermove", move); box.removeEventListener("pointerup", up); };
+    box.addEventListener("pointermove", move); box.addEventListener("pointerup", up);
+  });
+  // taille finale
+  const wIn = $("#ed-w"), hIn = $("#ed-h");
+  wIn.oninput = () => { st.typing = true; if(st.lock) hIn.value = Math.round(wIn.value * st.c.h / st.c.w); };
+  hIn.oninput = () => { st.typing = true; if(st.lock) wIn.value = Math.round(hIn.value * st.c.w / st.c.h); };
+  $("#ed-lock").onclick = () => { st.lock = !st.lock; $("#ed-lock").textContent = st.lock ? "🔗" : "⛓️‍💥"; };
+  dlg.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { st.typing = true; wIn.value = Math.round(st.c.w*b.dataset.p/100); hIn.value = Math.round(st.c.h*b.dataset.p/100); });
+  $("#ed-reset").onclick = () => { st.typing=false; dlg.querySelector("[data-i='0']").click(); st.c = {x:0,y:0,w:W,h:H}; draw(); };
+  $("#ed-x").onclick = () => openItem(it);
+  async function save(mode){
+    const c = st.c, full = c.x<1 && c.y<1 && Math.abs(c.w-W)<1 && Math.abs(c.h-H)<1;
+    const w = parseInt(wIn.value), h = parseInt(hIn.value);
+    const body = {mode, reclassify: $("#ed-re").checked, crop: full ? null : {x:Math.round(c.x), y:Math.round(c.y), w:Math.round(c.w), h:Math.round(c.h)}};
+    if(w && h && (w !== Math.round(c.w) || h !== Math.round(c.h))){ body.width = w; body.height = h; }
+    if(!body.crop && !body.width) return toast("Rien à changer");
+    try{
+      const r = await post(`/api/item/${it.id}/edit`, body);
+      toast(mode==="copy" ? `Copie créée (${r.width} × ${r.height})` : `Image modifiée (${r.width} × ${r.height})`);
+      refresh(); openItem(r);
+    }catch(e){ toast(e.message) }
+  }
+  $("#ed-save").onclick = () => save("replace");
+  $("#ed-copy").onclick = () => save("copy");
+  if($("#ed-orig")) $("#ed-orig").onclick = async () => { const r = await post(`/api/item/${it.id}/restore-original`); toast("Original remis"); refresh(); openItem(r); };
+  if(img.complete) draw(); img.onload = draw; addEventListener("resize", draw);
+  if(!dlg.open) dlg.showModal();
+}
+
+async function del(ids){
+  if(!ids.length) return;
+  const r = await post("/api/trash", {ids});
+  ids.forEach(i=>S.sel.delete(i)); updSel();
+  toast(`${r.count} supprimée(s)` + (r.kept_images.length?` (image gardée : utilisée dans un moodboard)`:""), r.batch);
+  refresh(); loadStatus();
+}
+$("#undo").onclick = async () => { if(!undoBatch) return; const r = await post("/api/restore", {batch:undoBatch}); toast(`${r.restored} remise(s) en place`); refresh(); loadStatus(); };
+
+function openItem(it){
+  const dlg = $("#dlg"), m = it.meta || {};
+  const obs = it.note ? `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(it.note.replace(/\.md$/,""))}` : "";
+  const rows = [["Medium", it.medium], ["Style", (m.style||[]).join(", ")], ["Mouvement", (m.movement||[]).join(", ")], ["Ambiance", (m.mood||[]).join(", ")],
+    ["Technique", (m.technique||[]).join(", ")], ["Sujet", m.subject], ["Composition", m.composition], ["Lumière", m.lighting], ["Typo", m.typography],
+    ["Texture", m.texture], ["Époque", m.era], ["Température", m.color_temperature], ["Proche de", (m.references||[]).join(", ")],
+    ["Thèmes", (m.themes||[]).join(", ")], ["Auteur", it.author ? it.author + " (page)" : m.author_guess ? `${m.author_guess} ? (estimé, ${Math.round((m.author_confidence||0)*100)} %)` : ""],
+    ["Site", it.site_name]].filter(r=>r[1]);
+  const uses = S.st.use_for || [];
+  const pal = (m.palette||[]).length ? m.palette : it.palette.map(h=>({hex:h,name:""}));
+  dlg.innerHTML = `<div class="det">
+    <div class="vis">${it.image ? `<img src="/media/${it.id}/full?v=${encodeURIComponent(it.meta.edited_at||"")}" alt="">` : it.type==="text" ? `<blockquote>${esc(it.text)}</blockquote>` : `<div class="mono">${esc(it.error||"Image en cours de récupération…")}</div>`}</div>
+    <div class="info">
+      <div style="display:flex;justify-content:space-between;gap:10px"><h2 contenteditable="true" id="e-title">${esc(it.title||it.page_title||"Sans titre")}</h2><button class="ghost" id="e-close">✕</button></div>
+      <div class="mono">${esc(it.created.replace("T"," "))} · ${esc(it.source)}${it.width?` · ${it.width}×${it.height}`:""}</div>
+      ${pal.length?`<div class="pal">${pal.map(p=>`<div data-hex="${esc(p.hex)}" title="Clic : copier · double‑clic : chercher cette couleur"><span style="background:${esc(p.hex)}"></span><small>${esc(p.hex)}<br>${esc(p.name||"")}</small></div>`).join("")}</div>`:""}
+      ${it.description?`<div>${esc(it.description)}</div>`:""}
+      ${rows.length?`<dl>${rows.map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`:""}
+      ${it.error?`<div style="color:var(--warn)">⚠ ${esc(it.error)}</div>`:""}
+      ${m.fiche_incomplete?`<div style="color:var(--warn)">⚠ Fiche incomplète, il manque : ${esc(m.fiche_incomplete.join(", "))}. Essaie « Reclasser » ou une autre IA.</div>`:""}
+      ${m.enriched_by?`<div class="mono">Fiche faite par ${esc(m.enriched_by.replace("ollama:","").replace("claude:",""))} · ${esc(m.enriched_at||"")}</div>`:""}
+      <label class="mono">Tags (séparés par des virgules)</label>
+      <input id="e-tags" value="${esc(it.tags.join(", "))}">
+      ${uses.length?`<label class="mono">Usage</label><div class="uses">${uses.map(u=>`<label><input type="checkbox" value="${esc(u)}" ${(m.use_for||[]).includes(u)?"checked":""}>${esc(u)}</label>`).join("")}</div>`:""}
+      <label class="mono">Ma note</label>
+      <textarea id="e-note" rows="3">${esc(it.user_note||"")}</textarea>
+      ${it.source_url?`<a class="mono" href="${esc(it.source_url)}" target="_blank" rel="noopener">↗ ${esc(it.page_title||it.source_url)}</a>`:""}
+      ${(m.also_seen||[]).map(s=>`<a class="mono" href="${esc(s.url)}" target="_blank" rel="noopener">↗ aussi vue le ${esc(s.date)}</a>`).join("")}
+      <div class="actions">
+        <button class="primary" id="e-save">Enregistrer</button>
+        ${it.image?`<button id="e-sim">Images similaires</button><button id="e-crop">✂ Rogner / redimensionner</button>`:""}
+        ${obs && S.st.is_pc?`<a href="${obs}"><button>Obsidian</button></a>`:""}
+        <button id="e-retry">${it.status==="fetch"||(!it.image&&it.type==="image")?"Réessayer":"Reclasser"}</button>
+        <button class="danger ghost" id="e-del">Supprimer</button>
+      </div>
+    </div></div>`;
+  $("#e-close").onclick = () => dlg.close();
+  dlg.querySelectorAll(".pal div").forEach(el => {
+    el.onclick = () => { navigator.clipboard?.writeText(el.dataset.hex); toast(el.dataset.hex + " copié"); };
+    el.ondblclick = () => { dlg.close(); setColor(el.dataset.hex); S.sim=null; S.fam=null; setView("wall"); };
+  });
+  $("#e-save").onclick = async () => {
+    await api(`/api/item/${it.id}`, {method:"PATCH", body:JSON.stringify({title:$("#e-title").innerText.trim(), tags:$("#e-tags").value.split(","),
+      user_note:$("#e-note").value, use_for:[...dlg.querySelectorAll(".uses input:checked")].map(i=>i.value)})});
+    toast("Enregistré"); dlg.close(); refresh();
+  };
+  if($("#e-sim")) $("#e-sim").onclick = () => { dlg.close(); S.sim=[it.id]; setView("wall"); };
+  if($("#e-crop")) $("#e-crop").onclick = () => openEditor(it);
+  $("#e-retry").onclick = async () => { await post(`/api/item/${it.id}/retry`); toast("Relancé"); dlg.close(); refresh(); poll(); };
+  $("#e-del").onclick = async () => { dlg.close(); del([it.id]); };
+  if(!dlg.open) dlg.showModal();
+}
+const dlg = $("#dlg"); dlg.addEventListener("click", e => { if(e.target===dlg) dlg.close(); });
+
+$("#mkboard").onclick = async () => {
+  const name = $("#boardname").value.trim() || "Moodboard";
+  try{
+    const r = await post("/api/board", {name, ids:[...S.sel]});
+    toast(r.added ? `${r.added} image(s) ajoutée(s) à « ${name} »` : `Déjà toutes dans « ${name} »`);
+    const ids = [...S.sel]; S.sel.clear(); updSel(); loadBoards();
+    if(r.similar?.length){ S.sim = ids; setView("wall"); }
+    if(S.st.is_pc && confirm("Ouvrir le moodboard dans Obsidian ?")) location.href = r.obsidian;
+  }catch(e){ toast(e.message) }
+};
+$("#selsim").onclick = () => { S.sim=[...S.sel]; setView("wall"); };
+$("#seldel").onclick = () => del([...S.sel]);
+$("#clearsel").onclick = () => { S.sel.clear(); updSel(); refresh(); };
+async function loadBoards(){ const b = await api("/api/boards"); $("#boardlist").innerHTML = b.map(x=>`<option value="${esc(x.name)}">${x.images} images</option>`).join(""); }
+
+function setView(v){ S.view=v; document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on", b.dataset.v===v)); refresh(); }
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { S.sim=null; S.fam=null; setView(b.dataset.v); });
+let qt; $("#q").addEventListener("input", e => { clearTimeout(qt); qt = setTimeout(()=>{ S.q = e.target.value; S.sim=null; if(S.view!=="wall") setView("wall"); else refresh(); }, 220); });
+$("#color").addEventListener("change", e => { setColor(e.target.value); S.sim=null; setView("wall"); });
+$("#nocolor").onclick = () => { setColor(""); refresh(); };
+$("#sort").onchange = e => { S.sort = e.target.value; refresh(); };
+$("#menubtn").onclick = e => { e.stopPropagation(); $("#menu").classList.toggle("show"); };
+addEventListener("click", () => $("#menu").classList.remove("show"));
+$("#m-pair").onclick = () => location.href = "/pair";
+$("#m-ai").onclick = openAI;
+$("#aichip").onclick = () => S.st.is_pc ? openAI() : toast("Réglages IA : depuis le PC");
+$("#m-ext").onclick = () => window.open("/aide-extension", "_blank");
+// taille des images (mémorisée sur ce navigateur)
+function setSize(px){ document.documentElement.style.setProperty("--cw", px + "px"); document.documentElement.style.setProperty("--cwm", Math.round(px*0.62) + "px"); }
+try{ const sv = localStorage.getItem("inspi-size"); if(sv){ $("#size").value = sv; setSize(sv); } }catch(e){}
+$("#size").addEventListener("input", e => { setSize(e.target.value); try{ localStorage.setItem("inspi-size", e.target.value) }catch(err){} });
+$("#m-obs").onclick = () => location.href = `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=_Inspi`;
+$("#m-reclass").onclick = async () => { const r = await post("/api/reclassify-all", {}); toast(`${r.count} note(s) à reclasser`); poll(); };
+$("#m-reclass-all").onclick = async () => { if(!confirm("Reclasser toute la bibliothèque ? Ça peut prendre du temps (environ 10 à 30 s par image).")) return; const r = await post("/api/reclassify-all", {all:true}); toast(`${r.count} note(s) à reclasser`); poll(); };
+$("#m-doctor").onclick = async () => {
+  const checks = await api("/api/doctor");
+  dlg.innerHTML = `<div style="padding:24px" class="doc"><div style="display:flex;justify-content:space-between"><h2 style="margin:0">Diagnostic</h2><button class="ghost" onclick="dlg.close()">✕</button></div><ul>${checks.map(c=>`<li><span class="${c.ok?"ok":"ko"}">${c.ok?"✓":"✗"}</span> <b>${esc(c.name)}</b> <span class="mono">${esc(c.detail)}</span>${c.fix?`<br><span class="mono">→ ${esc(c.fix)}</span>`:""}</li>`).join("")}</ul></div>`;
+  if(!dlg.open) dlg.showModal();
+};
+
+async function upload(files, extra={}){
+  const fd = new FormData(); files.forEach(f => fd.append("file", f)); fd.append("source","web");
+  for(const [k,v] of Object.entries(extra)) fd.append(k, v);
+  const r = await fetch("/api/capture", {method:"POST", body:fd, credentials:"same-origin"});
+  const j = await r.json().catch(()=>({}));
+  toast(r.ok ? j.message : "Échec : " + (j.error||r.status)); refresh(); poll();
+}
+let dragN = 0;
+addEventListener("dragenter", e => { if([...e.dataTransfer.types].includes("Files")){ dragN++; document.body.classList.add("dragging"); }});
+addEventListener("dragleave", () => { if(--dragN<=0){ dragN=0; document.body.classList.remove("dragging"); }});
+addEventListener("dragover", e => e.preventDefault());
+addEventListener("drop", e => {
+  e.preventDefault(); dragN=0; document.body.classList.remove("dragging");
+  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+  if(files.length) return upload(files);
+  const url = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+  if(/^https?:\/\//.test(url)) upload([], {text:url.trim()});
+});
+// Ctrl+V : coller une image ou un lien
+addEventListener("paste", e => {
+  if(e.target.closest("input,textarea,[contenteditable]")) return;
+  const files = [...e.clipboardData.files].filter(f => f.type.startsWith("image/"));
+  if(files.length) return upload(files);
+  const t = e.clipboardData.getData("text").trim();
+  if(/^https?:\/\/\S+$/.test(t)) upload([], {text:t});
+});
+
+let lastPend = -1;
+async function poll(){
+  clearTimeout(poll._t);
+  const pend = await loadStatus();
+  if(pend !== lastPend && lastPend !== -1 && S.view==="wall" && !$("#dlg").open) refresh();
+  lastPend = pend;
+  poll._t = setTimeout(poll, pend ? 4000 : 15000);
+}
+loadStatus().then(()=>{ refresh(); loadBoards(); poll(); });
+</script>
+</body>
+</html>

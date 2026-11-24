@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Envoyer à Inspi",
+  "version": "2.0.0",
+  "description": "Clic droit sur une image, un texte, un lien ou une page pour l'envoyer à Inspi Local (sur ton PC).",
+  "permissions": ["contextMenus", "storage", "scripting", "notifications", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "background": {"service_worker": "background.js"},
+  "options_page": "options.html",
+  "action": {"default_title": "Inspi : options"},
+  "icons": {"128": "icon128.png"}
+}

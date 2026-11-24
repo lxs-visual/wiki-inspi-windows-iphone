@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Installer l'extension · Inspi</title><link rel="stylesheet" href="/app.css">
+<style>body{padding:40px 24px}.wrap{max-width:760px;margin:0 auto}h1{letter-spacing:-.03em}
+section{border:1px solid var(--line);border-radius:18px;padding:20px 22px;margin-bottom:16px;background:var(--panel)}
+ol{padding-left:1.2em}li{margin:.5em 0}.val{font-family:var(--mono);font-size:13px;background:#0b0b0c;border:1px solid var(--line);border-radius:8px;padding:.5em .7em;display:inline-block;overflow-wrap:anywhere}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}</style></head>
+<body><div class="wrap"><div class="brand"><i></i>Inspi</div>
+<h1>Installer l'extension « Envoyer à Inspi »</h1>
+<p class="mono">Elle fonctionne sur Google Chrome et sur Microsoft Edge (même fichier).</p>
+<div class="row"><button class="primary" onclick="go('chrome')">Préparer pour Chrome</button><button class="primary" onclick="go('edge')">Préparer pour Edge</button></div>
+<section><ol>
+<li>La page <b>Extensions</b> du navigateur s'ouvre, ainsi que le dossier de l'extension.</li>
+<li>Active le <b>Mode développeur</b> (Chrome : en haut à droite · Edge : dans le panneau de gauche).</li>
+<li>Clique <b>Charger l'extension non empaquetée</b> et choisis ce dossier (son chemin est déjà copié, colle‑le avec Ctrl+V) :<br><span class="val">{{FOLDER}}</span></li>
+<li>C'est tout : l'extension se connecte toute seule à Inspi. Fais un clic droit sur n'importe quelle image → <b>Envoyer à Inspi</b>.</li>
+</ol>
+<p class="mono">Astuce : épingle l'icône orange Inspi dans la barre du navigateur (icône puzzle → épingle). Au démarrage, Chrome/Edge peut afficher « Désactiver les extensions en mode développeur » : clique sur la croix pour la garder.</p></section>
+</div><div class="toast" id="toast"></div>
+<script>
+async function go(b){ const r = await fetch("/api/extension/install",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({browser:b})});
+ const j = await r.json(); const t=document.getElementById("toast"); t.textContent = r.ok ? `${j.browser} ouvert, dossier prêt` : j.error; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),3000); }
+</script></body></html>
