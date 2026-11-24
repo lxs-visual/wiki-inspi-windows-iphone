@@ -20,6 +20,18 @@ from . import colors, store
 CELL, GAP = 340, 40
 DRAW_RE = re.compile(r"```(compressed-json|json)\n(.*?)\n```", re.S)
 FILE_RE = re.compile(r"^([0-9a-f]{40}): \[\[([^\]]+)\]\]", re.M)
+
+
+def link_name(rel: str) -> str:
+    """Nom de fichier d'un lien Obsidian : [[assets/2026-11/x.jpg]], [[x.jpg]] ou [[x.jpg|alias]] → x.jpg.
+    (Obsidian / Excalidraw réécrivent souvent les liens en version courte.)"""
+    return rel.split("|")[0].split("#")[0].replace("\\", "/").rsplit("/", 1)[-1].strip().lower()
+
+
+def board_refs(text: str) -> tuple[set[str], set[str]]:
+    """(identifiants de fichiers, noms de fichiers) des images d'un board."""
+    pairs = FILE_RE.findall(text)
+    return {fid for fid, _ in pairs}, {link_name(rel) for _, rel in pairs}
 _KEY = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
 
 
@@ -200,9 +212,9 @@ def _append(path, items: list[dict]) -> int:
     if not m:
         raise ValueError("Ce moodboard n'a pas de dessin lisible.")
     data = json.loads(lz_decompress_b64(m.group(2)) if m.group(1) == "compressed-json" else m.group(2))
-    have = {fid for fid, _ in FILE_RE.findall(text)} | {e.get("fileId") for e in data.get("elements", []) if e.get("fileId")}
-    have_paths = {rel for _, rel in FILE_RE.findall(text)}
-    fresh = [it for it in items if (it.get("sha1") not in have) and it["image"] not in have_paths]
+    have, have_names = board_refs(text)
+    have |= {e.get("fileId") for e in data.get("elements", []) if e.get("fileId")}
+    fresh = [it for it in items if it.get("sha1") not in have and link_name(it["image"]) not in have_names]
     if not fresh:
         return 0
     live = [e for e in data.get("elements", []) if not e.get("isDeleted")]
@@ -229,11 +241,18 @@ def _append(path, items: list[dict]) -> int:
 
 def list_boards() -> list[dict]:
     """Moodboards du coffre, du plus récent au plus ancien, avec les inspi qu'ils contiennent."""
-    by_path = {it["image"]: it["id"] for it in store.all_items() if it.get("image")}
+    items = [it for it in store.all_items() if it.get("image")]
+    by_name = {link_name(it["image"]): it["id"] for it in items}
+    by_sha = {it["sha1"]: it["id"] for it in items if it.get("sha1")}
     out = []
     for p in sorted(store.BOARDS.glob("*.excalidraw.md"), key=lambda p: -p.stat().st_mtime):
-        rels = [rel for _, rel in FILE_RE.findall(p.read_text(encoding="utf-8", errors="ignore"))]
-        ids = [by_path[r] for r in rels if r in by_path]
+        pairs = FILE_RE.findall(p.read_text(encoding="utf-8", errors="ignore"))
+        rels = [rel for _, rel in pairs]
+        ids = []
+        for fid, rel in pairs:  # par nom de fichier, ou par empreinte si le fichier a été renommé
+            iid = by_name.get(link_name(rel)) or by_sha.get(fid)
+            if iid and iid not in ids:
+                ids.append(iid)
         out.append({"name": p.name[: -len(".excalidraw.md")], "images": len(rels), "ids": ids,
                     "updated": datetime.fromtimestamp(p.stat().st_mtime).strftime("%d/%m/%Y %H:%M"),
                     "path": f"Moodboards/{p.name}"})

@@ -1,5 +1,14 @@
 # Journal des versions
 
+## 2.0.1 (novembre 2026)
+
+### Corrigé
+- Aperçus des moodboards vides après ouverture dans Obsidian : Excalidraw réécrit les liens d'images en version courte, ils sont maintenant reconnus (par nom de fichier ou par empreinte).
+- Une image utilisée dans un moodboard ouvert dans Obsidian pouvait partir à la corbeille : elle est maintenant protégée.
+- Menus déroulants illisibles (texte clair sur fond clair) : les menus sont maintenant sombres.
+- Barre du haut coupée sur les écrans moyens : elle passe sur deux lignes si besoin.
+- Aperçus de moodboards adaptés au nombre d'images (1, 2, 3, 4 et plus).
+
 ## 2.0.0 · Wiki Inspi Windows + iPhone app (novembre 2026)
 
 Version Windows et iPhone de [wiki-inspi](https://github.com/aion88/wiki-inspi) (V1, macOS).

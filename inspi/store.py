@@ -357,8 +357,15 @@ def add_text(text: str, source: str = "web", source_url: str = "", page_title: s
 
 
 # ---------- corbeille ----------
-def _used_by_board(rel: str) -> bool:
-    return any(rel in p.read_text(encoding="utf-8", errors="ignore") for p in BOARDS.glob("*.excalidraw.md"))
+def _used_by_board(rel: str, sha: str | None = None) -> bool:
+    """Vrai si un moodboard utilise l'image (lien complet, lien court réécrit par Obsidian, ou empreinte)."""
+    from .boards import board_refs, link_name
+    name = link_name(rel)
+    for p in BOARDS.glob("*.excalidraw.md"):
+        fids, names = board_refs(p.read_text(encoding="utf-8", errors="ignore"))
+        if name in names or (sha and sha in fids):
+            return True
+    return False
 
 
 def trash(ids: list[str]) -> dict:
@@ -376,7 +383,7 @@ def trash(ids: list[str]) -> dict:
             rel = it.get(key)
             if not rel or not (VAULT / rel).exists():
                 continue
-            if key == "image" and _used_by_board(rel):
+            if key == "image" and _used_by_board(rel, it.get("sha1")):
                 kept.append(rel)
                 continue
             target = dest / rel.replace("/", "__")
