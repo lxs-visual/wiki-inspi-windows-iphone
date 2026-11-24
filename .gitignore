@@ -1,0 +1,9 @@
+# Environnement et données locales (jamais publiés)
+.venv/
+__pycache__/
+*.pyc
+config.yml
+.token
+.anthropic_key
+clipper/
+*.log
